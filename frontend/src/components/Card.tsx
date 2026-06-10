@@ -23,7 +23,6 @@ export default function Card({ val, symbole, couleur, isDragging, isDraggable = 
     <div
       onPointerDown={onPointerDown}
       style={style}
-      // On ajoute [perspective:1000px] pour activer la 3D
       className={`
         w-[95px] h-[140px] select-none touch-none rounded-lg [perspective:1000px]
         ${isDragging 
@@ -32,14 +31,13 @@ export default function Card({ val, symbole, couleur, isDragging, isDraggable = 
         }
       `}
     >
-      {/* C'est ce conteneur intérieur qui tourne à 180° grâce à isFaceDown */}
       <div 
         className={`
           relative w-full h-full rounded-lg transition-transform duration-500 ease-in-out [transform-style:preserve-3d] shadow-md
           ${isFaceDown ? '[transform:rotateY(180deg)]' : '[transform:rotateY(0deg)]'}
         `}
       >
-        {/* --- FACE AVANT --- */}
+        {/* FACE AVANT */}
         <div className={`absolute inset-0 bg-gradient-to-br from-white to-gray-100 border border-gray-300 rounded-lg flex justify-center items-center text-5xl ${textColor} [backface-visibility:hidden]`}>
           <div className="absolute top-1 left-1 flex flex-row items-baseline gap-[2px] text-xl font-bold leading-none">
             <span>{val}</span><span className="text-lg">{symbole}</span>
@@ -50,7 +48,7 @@ export default function Card({ val, symbole, couleur, isDragging, isDraggable = 
           </div>
         </div>
 
-        {/* --- FACE ARRIÈRE (DOS) --- */}
+        {/* FACE ARRIÈRE */}
         <div className={`absolute inset-0 border-4 border-white ${backPatternColor} ${patternStyle} rounded-lg [backface-visibility:hidden] [transform:rotateY(180deg)] flex justify-center items-center`}>
           <div className="w-[75px] h-[120px] border-2 border-white/40 rounded-md"></div>
         </div>
