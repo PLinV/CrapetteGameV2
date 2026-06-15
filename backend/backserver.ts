@@ -1,30 +1,45 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { initDB } from './repositories/database';
+import { createServer } from 'http'; 
+import { Server } from 'socket.io';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// middleware pour cors autorise l'url suivant de faire des requéte 
+const server = createServer(app); 
+
+// on branche socket.io sur ce serveur HTTP
+const io = new Server(server, {
+    cors: {
+        origin: 'http://localhost:5173',
+        methods: ["GET", "POST"]
+    }
+});
+
+// config http
 app.use(cors({ origin: 'http://localhost:5173' })); 
-
-// permet de lire les corps de requêtes au format JSON
 app.use(express.json());
-
 
 app.get('/', (req: Request, res: Response) => {
     res.send('Le serveur backend est bien lancé');
 });
 
 app.get('/api/test', (req: Request, res: Response) => {
-    res.json({ 
-        success: true, 
-        message: 'La communication entre React et Express fonctionne' 
+    res.json({ success: true, message: 'La communication HTTP fonctionne' });
+});
+
+// config socket.io 
+io.on('connection', (socket) => {
+    console.log(`[SOCKET] Nouveau joueur connecté : ${socket.id}`);
+
+    socket.on('disconnect', () => {
+        console.log(`[SOCKET] Joueur déconnecté : ${socket.id}`);
     });
 });
 
-initDB();
 
-app.listen(PORT, () => {
-    console.log(`serveur démarré avec succès sur http://localhost:${PORT}`);
+initDB();
+server.listen(PORT, () => {
+    console.log(`serveur mixte (HTTP + WebSockets) démarré sur http://localhost:${PORT}`);
 });

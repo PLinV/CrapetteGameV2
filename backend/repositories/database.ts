@@ -17,7 +17,7 @@ const pool = new Pool({
 export async function initDB() {
   const client = await pool.connect();
   try {
-    console.log("🟢 Connecté avec succès à la DB PostgreSQL !");
+    console.log("connecté à la DB ");
     
     // Création de la table avec username, email et password
     await client.query(`
@@ -28,6 +28,17 @@ export async function initDB() {
       );
     `);
     console.log("table 'users' vérifiée/créée.");
+
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            token_hash VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+    console.log("table 'refresh_tokens' vérifiée/créée.");
+    
   } catch (error) {
     console.error("erreur lors de l'initialisation de la DB :", error);
   } finally {

@@ -17,8 +17,14 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-neutral-950 to-black text-gray-100 p-4">
-      
-      {/* NOUVEAU : max-w-lg (plus large) et p-10 (plus d'espace interne) */}
+      <Link 
+        to="/" 
+        className="absolute top-6 left-6 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-amber-400 transition-colors group z-50"
+        >
+        <span className="text-lg transition-transform group-hover:-translate-x-1">←</span>
+        Menu Principal
+      </Link>
+
       <div className="relative w-full max-w-lg bg-black/40 p-10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/10 backdrop-blur-md overflow-hidden">
         
         {/* Déco : Un petit halo lumineux derrière le titre */}
