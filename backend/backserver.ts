@@ -1,13 +1,30 @@
-const express = require('express');
-const app = express();
-const port = 3000;
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import { initDB } from './repositories/database';
 
-// Création d'une route : quand on visite la page d'accueil ('/'), on renvoie ce texte
-app.get('/', (req, res) => {
-  res.send('hello world');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// middleware pour cors autorise l'url suivant de faire des requéte 
+app.use(cors({ origin: 'http://localhost:5173' })); 
+
+// permet de lire les corps de requêtes au format JSON
+app.use(express.json());
+
+
+app.get('/', (req: Request, res: Response) => {
+    res.send('Le serveur backend est bien lancé');
 });
 
-// On demande au serveur d'écouter les requêtes sur le port 3000
-app.listen(port, () => {
-  console.log(`Serveur démarré sur http://localhost:${port}`);
+app.get('/api/test', (req: Request, res: Response) => {
+    res.json({ 
+        success: true, 
+        message: 'La communication entre React et Express fonctionne' 
+    });
+});
+
+initDB();
+
+app.listen(PORT, () => {
+    console.log(`serveur démarré avec succès sur http://localhost:${PORT}`);
 });

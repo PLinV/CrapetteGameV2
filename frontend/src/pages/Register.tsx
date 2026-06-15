@@ -1,43 +1,43 @@
 import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import { Link } from 'react-router-dom'; // NOUVEAU : L'import pour la navigation
+import { Link } from 'react-router-dom';
 
-export default function Login() {
+export default function Register() {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     // Pour l'instant, on affiche juste dans la console
-    console.log("Tentative de connexion de :", { username, password });
+    console.log("Tentative de création de compte :", { username, email, password });
     
-    // C'est ici qu'on fera le fetch vers le backend plus tard !
+    // C'est ici qu'on fera le fetch (POST) vers le backend plus tard !
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-neutral-950 to-black text-gray-100 p-4">
       
-      {/* NOUVEAU : max-w-lg (plus large) et p-10 (plus d'espace interne) */}
+      {/* Conteneur principal */}
       <div className="relative w-full max-w-lg bg-black/40 p-10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/10 backdrop-blur-md overflow-hidden">
         
-        {/* Déco : Un petit halo lumineux derrière le titre */}
+        {/* Déco : Halo lumineux */}
         <div className="absolute -top-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         
-        {/* En-tête avec les symboles de cartes */}
+        {/* En-tête */}
         <div className="text-center mb-10 relative">
           <div className="flex justify-center gap-3 text-3xl text-amber-500/40 mb-3 font-serif select-none">
             <span>♠</span><span>♥</span><span>♦</span><span>♣</span>
           </div>
-          {/* NOUVEAU : text-4xl au lieu de 3xl pour un titre plus imposant */}
           <h1 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-300 to-amber-500">
             Crapette Club
           </h1>
-          <p className="text-sm text-gray-500 uppercase tracking-widest mt-2">Prenez place à la table</p>
+          <p className="text-sm text-gray-500 uppercase tracking-widest mt-2">Rejoignez la table</p>
         </div>
 
         {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           
           {/* Champ Pseudo */}
           <div className="flex flex-col gap-2">
@@ -54,13 +54,12 @@ export default function Login() {
             />
           </div>
 
+
           {/* Champ Mot de passe */}
           <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center pl-1">
-              <label className="text-sm font-bold uppercase tracking-wider text-gray-400">
-                Mot de passe
-              </label>
-            </div>
+            <label className="text-sm font-bold uppercase tracking-wider text-gray-400 pl-1">
+              Mot de passe
+            </label>
             <input 
               type="password" 
               required
@@ -76,16 +75,15 @@ export default function Login() {
             type="submit"
             className="w-full mt-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black p-5 rounded-xl text-base uppercase tracking-wider transition-all active:scale-[0.98] shadow-[0_4px_20px_rgba(245,158,11,0.2)]"
           >
-            Se connecter
+            Créer mon compte
           </button>
         </form>
 
-        {/* Pied de page / Inscription */}
+        {/* Pied de page / Connexion */}
         <div className="text-center mt-10 pt-6 border-t border-white/5 text-sm text-gray-500">
-          Nouveau joueur ?{' '}
-          {/* NOUVEAU : Utilisation de Link vers la route /register */}
-          <Link to="/register" className="text-amber-500 hover:underline font-bold transition-all">
-            Créer un compte
+          Déjà joueur ?{' '}
+          <Link to="/login" className="text-amber-500 hover:underline font-bold transition-all">
+            Se connecter
           </Link>
         </div>
 

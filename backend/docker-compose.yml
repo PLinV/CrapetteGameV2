@@ -1,0 +1,47 @@
+# ==========================================================
+# COMMANDES UTILES :
+# ==========================================================
+# Lancer la base de données en arrière-plan : 
+# docker compose up -d db
+
+# Couper et détruire le conteneur (les données restent grâce au volume) :
+# docker compose down
+
+# Vérifier que la base de données tourne bien :
+# docker ps
+
+# Se connecter directement à la base pour voir les tables (via psql) :
+# docker exec -it crapette_db psql -U crapette_admin -d crapette_db
+# ==========================================================
+
+services:
+  db:
+    image: postgres:15
+    container_name: crapette_db
+    restart: always
+    ports:
+      - "5432:5432" # port exposé sur ta machine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # on sauvegarde les données ici pour ne rien perdre si le conteneur s'éteint
+      - pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test: [
+        "CMD",
+        "pg_isready",
+        "-U",
+        "${POSTGRES_USER}",
+        "-d",
+        "${POSTGRES_DB}"
+      ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+# déclaration du disque dur virtuel persistant
+volumes:
+  pgdata:

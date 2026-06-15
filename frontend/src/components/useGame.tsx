@@ -11,12 +11,12 @@ export const useGame = () => {
   const [cartes, setCartes] = useState<CarteData[]>(() => {
     const initialCards: CarteData[] = [];
     
-    // Tes 13 cartes empilées pour les tests (Zone 31)
+    // les 13 cartes empilées pour les tests en dur (Zone 31)
     for (let i = 1; i <= 13; i++) {
       initialCards.push({ id: `c${i}`, val: i.toString(), symbole: '♠', couleur: 'noir', zoneId: '31', zOrder: i });
     }
 
-    // NOUVEAU : Test pour la Pioche (12) et la Crapette (13)
+    // test pour la Pioche (12) et la Crapette (13) en dur
     initialCards.push({ id: 'pioche-1', val: '5', symbole: '♣', couleur: 'noir', zoneId: '12', isFaceDown: true, dosCouleur: 'rouge', zOrder: 1 });
     initialCards.push({ id: 'pioche-2', val: 'V', symbole: '♦', couleur: 'rouge', zoneId: '12', isFaceDown: true, dosCouleur: 'rouge', zOrder: 2 });
     
@@ -37,7 +37,7 @@ export const useGame = () => {
     e.preventDefault(); 
   };
 
-  // NOUVELLE FONCTION : Gère les clics sur les cartes face cachée
+  // gère les clics sur les cartes face cachée
   const handleCardClick = (carteId: string) => {
     setCartes(prev => {
       const card = prev.find(c => c.id === carteId);
@@ -45,12 +45,12 @@ export const useGame = () => {
 
       const maxZ = Math.max(...prev.map(c => c.zOrder), 0);
 
-      // Règle 1 : Dans zone prioritaire (13, 23) -> Se retourne sur place
+      // règle 1 : Dans zone prioritaire (13, 23) -> Se retourne sur place
       if (['13', '23'].includes(card.zoneId)) {
         return prev.map(c => c.id === carteId ? { ...c, isFaceDown: false } : c);
       }
       
-      // Règle 2 : Dans pioche (12, 22) -> Se retourne ET va dans la défausse (11, 21)
+      // règle 2 : Dans pioche (12, 22) -> Se retourne ET va dans la défausse (11, 21)
       if (card.zoneId === '12') {
         return prev.map(c => c.id === carteId ? { ...c, isFaceDown: false, zoneId: '11', zOrder: maxZ + 1 } : c);
       }
@@ -63,7 +63,7 @@ export const useGame = () => {
   };
 
   useEffect(() => {
-    // (Garde le même useEffect qu'à la Turn précédente pour handlePointerMove et handlePointerUp)
+    // (garde le même useEffect qu'à la Turn précédente pour handlePointerMove et handlePointerUp)
     const handlePointerMove = (e: globalThis.PointerEvent) => { if (draggingId) setMousePos({ x: e.clientX, y: e.clientY }); };
     const handlePointerUp = (e: globalThis.PointerEvent) => {
       if (draggingId) {

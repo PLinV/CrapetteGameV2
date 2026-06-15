@@ -94,7 +94,7 @@ export default function Board({ cartes, draggingId, mousePos, dragOffset, onCard
             />
           );
 
-          // CIBLAGE : On anime UNIQUEMENT les cartes dans la pioche et la défausse
+          // on anime les cartes dans la pioche et la défausse
           const isAnimatedMove = ['11', '12', '21', '22'].includes(carte.zoneId);
 
           if (isAnimatedMove) {
@@ -117,7 +117,7 @@ export default function Board({ cartes, draggingId, mousePos, dragOffset, onCard
           const isPiocheOuDefausse = ['11', '12', '21', '22'].includes(carte.zoneId);
 
           return (
-            // On utilise <motion.div> TOUT LE TEMPS pour que React ne détruise pas la carte
+            // on utilise <motion.div> tout le temps pour que react ne détruise pas la carte
             <motion.div
               layout={isPiocheOuDefausse} 
               transition={{ type: "spring", stiffness: 200, damping: 22 }}
