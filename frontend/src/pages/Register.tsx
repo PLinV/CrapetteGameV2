@@ -1,27 +1,62 @@
 import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Register() {
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // états pour gérer l'affichage des erreurs et du chargement
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // hook pour rediriger le joueur après l'inscription
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: SyntheticEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    // Pour l'instant, on affiche juste dans la console
-    console.log("Tentative de création de compte :", { username, email, password });
-    
-    // C'est ici qu'on fera le fetch (POST) vers le backend plus tard !
+    setError(''); // On efface les anciennes erreurs
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:3000/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // autorise la réception et l'envoi de cookies
+        credentials: 'include', 
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // si le backend renvoie une erreur (ex: pseudo déjà pris, status 400 ou 409)
+        throw new Error(data.message || "une erreur est survenue lors de l'inscription.");
+      }
+
+      if (data.confirm) {
+        console.log("compte créé et connecté");
+        // on redirige vers le menu principal
+        navigate('/');
+      }
+
+    } catch (err: any) {
+      console.error("erreur Fetch Register:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-neutral-950 to-black text-gray-100 p-4">
-            <Link 
+      
+      <Link 
         to="/" 
         className="absolute top-6 left-6 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-amber-400 transition-colors group z-50"
-        >
+      >
         <span className="text-lg transition-transform group-hover:-translate-x-1">←</span>
         Menu Principal
       </Link>
@@ -43,6 +78,13 @@ export default function Register() {
           <p className="text-sm text-gray-500 uppercase tracking-widest mt-2">Rejoignez la table</p>
         </div>
 
+        {/* Affichage des erreurs si la requête échoue */}
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 text-sm text-center font-medium">
+            {error}
+          </div>
+        )}
+
         {/* Formulaire */}
         <form onSubmit={handleSubmit} className="space-y-5">
           
@@ -60,7 +102,6 @@ export default function Register() {
               className="w-full p-4 rounded-xl bg-neutral-900/80 border border-neutral-800 text-white font-medium placeholder-gray-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all text-base"
             />
           </div>
-
 
           {/* Champ Mot de passe */}
           <div className="flex flex-col gap-2">
@@ -80,9 +121,11 @@ export default function Register() {
           {/* Bouton de soumission */}
           <button 
             type="submit"
-            className="w-full mt-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black p-5 rounded-xl text-base uppercase tracking-wider transition-all active:scale-[0.98] shadow-[0_4px_20px_rgba(245,158,11,0.2)]"
+            disabled={isLoading}
+            className={`w-full mt-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black p-5 rounded-xl text-base uppercase tracking-wider transition-all shadow-[0_4px_20px_rgba(245,158,11,0.2)]
+              ${isLoading ? 'opacity-70 cursor-not-allowed scale-100' : 'active:scale-[0.98]'}`}
           >
-            Créer mon compte
+            {isLoading ? 'Création en cours...' : 'Créer mon compte'}
           </button>
         </form>
 

@@ -8,7 +8,7 @@ import {
   logoutAll, 
   verifyUser 
 } from '../controllers/auth';
-import { refreshAccessTokenHandler } from '../controllers/token'; // ou ./services/token.ts selon où tu l'as mis
+import { refreshAccessTokenHandler } from '../controllers/token';
 import { requireAuth } from '../middleware/auth_middleware';
 
 const router = Router();
@@ -21,8 +21,5 @@ router.get('/me', requireAuth, verifyUser);
 
 
 router.post('/refresh', refreshAccessTokenHandler);
-
-// Tu pourras ajouter tes futures routes de jeu ici !
-// exemple: router.get('/leaderboard', getLeaderboard);
 
 export default router;

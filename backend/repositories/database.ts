@@ -19,7 +19,7 @@ export async function initDB() {
   try {
     console.log("connecté à la DB ");
     
-    // Création de la table avec username, email et password
+    // Création de la table avec usernameet password
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -38,7 +38,7 @@ export async function initDB() {
         );
     `);
     console.log("table 'refresh_tokens' vérifiée/créée.");
-    
+
   } catch (error) {
     console.error("erreur lors de l'initialisation de la DB :", error);
   } finally {

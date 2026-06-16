@@ -12,6 +12,9 @@
 
 # Se connecter directement à la base pour voir les tables (via psql) :
 # docker exec -it crapette_db psql -U crapette_admin -d crapette_db
+
+# verif les users
+# docker exec -it crapette_db psql -U crapette_admin -d crapette_db -c "SELECT id, username FROM users;"
 # ==========================================================
 
 services:

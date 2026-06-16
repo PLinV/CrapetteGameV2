@@ -1,18 +1,52 @@
 import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import { Link } from 'react-router-dom'; // NOUVEAU : L'import pour la navigation
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  
+  // états pour gérer l'affichage des erreurs et du chargement
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: SyntheticEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    // Pour l'instant, on affiche juste dans la console
-    console.log("Tentative de connexion de :", { username, password });
-    
-    // C'est ici qu'on fera le fetch vers le backend plus tard !
+    setError(''); // On efface les anciennes erreurs
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:3000/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // autorise la réception et l'envoi de cookies
+        credentials: 'include', 
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // si le backend renvoie une erreur (ex: mauvais mot de passe)
+        throw new Error(data.message || "Une erreur est survenue lors de la connexion.");
+      }
+
+      if (data.confirm) {
+        console.log("Connexion réussie !");
+        // On redirige vers le menu principal
+        navigate('/');
+      }
+
+    } catch (err: any) {
+      console.error("Erreur Fetch Login:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -20,7 +54,7 @@ export default function Login() {
       <Link 
         to="/" 
         className="absolute top-6 left-6 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-amber-400 transition-colors group z-50"
-        >
+      >
         <span className="text-lg transition-transform group-hover:-translate-x-1">←</span>
         Menu Principal
       </Link>
@@ -35,12 +69,18 @@ export default function Login() {
           <div className="flex justify-center gap-3 text-3xl text-amber-500/40 mb-3 font-serif select-none">
             <span>♠</span><span>♥</span><span>♦</span><span>♣</span>
           </div>
-          {/* NOUVEAU : text-4xl au lieu de 3xl pour un titre plus imposant */}
           <h1 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-300 to-amber-500">
             Crapette Club
           </h1>
           <p className="text-sm text-gray-500 uppercase tracking-widest mt-2">Prenez place à la table</p>
         </div>
+
+        {/* Affichage des erreurs si la connexion échoue */}
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 text-sm text-center font-medium">
+            {error}
+          </div>
+        )}
 
         {/* Formulaire */}
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,16 +120,17 @@ export default function Login() {
           {/* Bouton de soumission */}
           <button 
             type="submit"
-            className="w-full mt-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black p-5 rounded-xl text-base uppercase tracking-wider transition-all active:scale-[0.98] shadow-[0_4px_20px_rgba(245,158,11,0.2)]"
+            disabled={isLoading}
+            className={`w-full mt-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black p-5 rounded-xl text-base uppercase tracking-wider transition-all shadow-[0_4px_20px_rgba(245,158,11,0.2)]
+              ${isLoading ? 'opacity-70 cursor-not-allowed scale-100' : 'active:scale-[0.98]'}`}
           >
-            Se connecter
+            {isLoading ? 'Connexion en cours...' : 'Se connecter'}
           </button>
         </form>
 
         {/* Pied de page / Inscription */}
         <div className="text-center mt-10 pt-6 border-t border-white/5 text-sm text-gray-500">
           Nouveau joueur ?{' '}
-          {/* NOUVEAU : Utilisation de Link vers la route /register */}
           <Link to="/register" className="text-amber-500 hover:underline font-bold transition-all">
             Créer un compte
           </Link>

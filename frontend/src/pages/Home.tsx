@@ -1,52 +1,52 @@
-// frontend/src/pages/Home.tsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { fetchWithAuth } from '../services/api';
 
 export default function Home() {
-  // Squelette d'état : à false, on affiche Login/Register. À true, on affiche JOUER.
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
-    // ---------------------------------------------------------
-    // C'EST ICI QUE TU FERAS LA VÉRIFICATION DU TOKEN PLUS TARD
-    // ---------------------------------------------------------
-    /*
-    const verifyToken = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setIsLoggedIn(false);
-        setIsLoading(false);
-        return;
-      }
-      
+    const verifyUser = async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/auth/verify', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setIsLoggedIn(res.ok);
+        const response = await fetchWithAuth('/me', { method: 'GET' });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsLoggedIn(true);
+          setUsername(data.username);
+        } else {
+          setIsLoggedIn(false);
+        }
       } catch (err) {
+        console.error("Erreur serveur :", err);
         setIsLoggedIn(false);
       } finally {
         setIsLoading(false);
       }
     };
-    verifyToken();
-    */
 
-    // Pour l'instant, on simule un chargement ultra rapide puis on dit que le joueur N'EST PAS connecté
-    setTimeout(() => {
-      setIsLoggedIn(false); // Change ça en `true` pour tester l'affichage du bouton JOUER !
-      setIsLoading(false);
-    }, 300);
+    verifyUser();
   }, []);
 
-  // Petit écran d'attente pendant qu'on vérifie le token
+  const handleLogout = async () => {
+    try {
+      // Pareil pour la déconnexion, c'est super propre
+      await fetchWithAuth('/logout', { method: 'POST' });
+      setIsLoggedIn(false);
+      setUsername('');
+    } catch (err) {
+      console.error("Erreur lors de la déconnexion :", err);
+    }
+  };
+
+  // petit écran d'attente pendant qu'on vérifie le token
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-950">
         <div className="text-amber-500 animate-pulse font-bold tracking-widest uppercase">
-          Vérification des cartes...
+          Vérification...
         </div>
       </div>
     );
@@ -72,8 +72,9 @@ export default function Home() {
         {isLoggedIn ? (
           // --- VUE JOUEUR CONNECTÉ ---
           <div className="flex flex-col items-center gap-6">
-            <div className="text-sm text-amber-400 font-bold uppercase tracking-widest">
-              Bienvenue à la table
+            <div className="text-sm text-amber-400 font-bold uppercase tracking-widest text-center">
+              Bienvenue à la table,<br/>
+              <span className="text-white text-lg">{username}</span>
             </div>
             
             <Link 
@@ -84,7 +85,7 @@ export default function Home() {
             </Link>
 
             <button 
-              onClick={() => setIsLoggedIn(false)} // Simule une déconnexion
+              onClick={handleLogout} 
               className="text-xs text-gray-600 hover:text-red-400 font-bold uppercase tracking-widest transition-colors"
             >
               Se déconnecter

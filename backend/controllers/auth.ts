@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { executeQuery } from '../database';
+import { executeQuery } from '../repositories/database';
 import {
   addUser,
   getUserById,
@@ -11,7 +11,7 @@ import {
   createAccessToken,
   createRefreshToken,
   hashRefreshToken,
-} from '../services/token_service';
+} from '../controllers/token';
 
 const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
   // access Token (Court : 15 minutes)
@@ -57,9 +57,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const accessToken = createAccessToken({ id: user.id, username: user.username });
     const refreshToken = createRefreshToken();
 
+    // Nettoyage : On supprime les vieux tokens périmés de CE joueur
+    await executeQuery(
+      "DELETE FROM refresh_tokens WHERE user_id = $1 AND expires_at < NOW()",
+      [user.id]
+    );
+
+
     const hashedRefresh = hashRefreshToken(refreshToken);
     await executeQuery(
-      "INSERT INTO refresh_tokens (user_id, token_hash) VALUES ($1, $2)",
+      "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
       [user.id, hashedRefresh]
     );
 
@@ -74,20 +81,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { username, email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!username || !email || !password) {
+    if (!username || !password) {
       res.status(400).json({ confirm: false, message: "Tous les champs sont requis." });
       return;
     }
 
-    const existeDeja = await userExist(username, email);
+    const existeDeja = await userExist(username);
     if (existeDeja) {
-      res.status(409).json({ confirm: false, message: "Pseudo ou email déjà utilisé." });
+      res.status(409).json({ confirm: false, message: "Pseudo déjà utilisé." });
       return;
     }
 
-    const succesAjout = await addUser(username, email, password);
+    const succesAjout = await addUser(username, password);
     if (!succesAjout) {
       res.status(500).json({ confirm: false, message: "Erreur lors de la création." });
       return;
@@ -100,7 +107,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const hashedRefresh = hashRefreshToken(refreshToken);
     await executeQuery(
-      "INSERT INTO refresh_tokens (user_id, token_hash) VALUES ($1, $2)",
+      "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
       [newUser.id, hashedRefresh]
     );
 
@@ -125,7 +132,6 @@ export const verifyUser = async (req: any, res: Response): Promise<void> => {
   res.status(200).json({
     estConnecte: true,
     username: user.username,
-    email: user.email
   });
 };
 
@@ -160,7 +166,7 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
 
     await executeQuery("DELETE FROM refresh_tokens WHERE token_hash = $1", [refreshTokenHash]);
     await executeQuery(
-      "INSERT INTO refresh_tokens (user_id, token_hash) VALUES ($1, $2)",
+      "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
       [userId, newHash]
     );
 

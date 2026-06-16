@@ -1,8 +1,13 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { initDB } from './repositories/database';
 import { createServer } from 'http'; 
 import { Server } from 'socket.io';
+import cron from 'node-cron';
+
+import { executeQuery } from './repositories/database';
+import router from './routes/routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,8 +23,14 @@ const io = new Server(server, {
 });
 
 // config http
-app.use(cors({ origin: 'http://localhost:5173' })); 
+app.use(cors({ 
+    origin: 'http://localhost:5173',
+    credentials: true
+})); 
 app.use(express.json());
+app.use(cookieParser()); 
+
+app.use('/', router);
 
 app.get('/', (req: Request, res: Response) => {
     res.send('Le serveur backend est bien lancé');
@@ -38,8 +49,16 @@ io.on('connection', (socket) => {
     });
 });
 
-
 initDB();
+cron.schedule('0 3 * * *', async () => {
+    try {
+        console.log("[CRON] Début du nettoyage des vieux tokens...");
+        const result = await executeQuery("DELETE FROM refresh_tokens WHERE expires_at < NOW() RETURNING id");
+        console.log(`[CRON] Nettoyage terminé. ${result.length} tokens supprimés.`);
+    } catch (error) {
+        console.error("[CRON] Erreur lors du nettoyage :", error);
+    }
+});
 server.listen(PORT, () => {
     console.log(`serveur mixte (HTTP + WebSockets) démarré sur http://localhost:${PORT}`);
 });

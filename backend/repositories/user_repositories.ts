@@ -25,12 +25,12 @@ export async function addUser(username: string, mdp: string): Promise<boolean> {
   }
 }
 
-// vérifier si un pseudo ou un email existe déjà
-export async function userExist(username: string, email: string): Promise<boolean> {
+// vérifier si un pseudo existe déjà
+export async function userExist(username: string): Promise<boolean> {
   try {
     const resultat = await executeQuery(
-      "SELECT id FROM users WHERE username = $1 OR email = $2;",
-      [username, email]
+      "SELECT id FROM users WHERE username = $1;",
+      [username]
     );
 
     // notre nouvelle fonction executeQuery renvoie un tableau (Array). On vérifie juste sa longueur.
@@ -72,7 +72,7 @@ export async function verifLogin(username: string, mdp: string): Promise<boolean
 export async function getUserByUsername(username: string) {
   try {
     const result = await executeQuery(
-      "SELECT id, username, email FROM users WHERE username = $1",
+      "SELECT id, username FROM users WHERE username = $1",
       [username]
     );
 
@@ -90,7 +90,7 @@ export async function getUserByUsername(username: string) {
 export async function getUserById(id: number) {
   try {
     const result = await executeQuery(
-      "SELECT id, username, email FROM users WHERE id = $1",
+      "SELECT id, username FROM users WHERE id = $1",
       [id]
     );
 
