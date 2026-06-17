@@ -78,7 +78,7 @@ export default function Home() {
             </div>
             
             <Link 
-              to="/game" 
+              to="/matchmaking" 
               className="w-full text-center px-8 py-5 bg-gradient-to-b from-[#2a723f] to-[#113a1e] rounded-xl text-3xl font-black border-2 border-[#d4af37] text-[#ffe8a1] uppercase tracking-wider hover:scale-105 hover:shadow-[0_0_30px_rgba(42,114,63,0.6)] active:scale-95 transition-all"
             >
               JOUER

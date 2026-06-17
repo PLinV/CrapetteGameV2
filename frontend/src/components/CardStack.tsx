@@ -1,5 +1,3 @@
-// frontend/src/components/CardStack.tsx
-
 export const getGridPlacement = (id: string) => {
   const placements: Record<string, { gridColumn: number, gridRow: number }> = {
     '41': { gridColumn: 2, gridRow: 2 }, '42': { gridColumn: 2, gridRow: 3 }, '43': { gridColumn: 2, gridRow: 4 }, '44': { gridColumn: 2, gridRow: 5 },

@@ -9,6 +9,7 @@ import type { CarteData } from './useGame';
 type BoardProps = {
   cartes: CarteData[];
   draggingId: string | null;
+  opponentDrag: { id: string, mousePos: {x:number, y:number}, dragOffset: {x:number, y:number} } | null; 
   mousePos: { x: number, y: number };
   dragOffset: { x: number, y: number };
   onCardPointerDown: (e: PointerEvent<HTMLDivElement>, carteId: string) => void;
@@ -21,7 +22,7 @@ const getOffsetByZone = (zoneId: string) => {
   return 0; 
 };
 
-export default function Board({ cartes, draggingId, mousePos, dragOffset, onCardPointerDown, onCardClick }: BoardProps) {
+export default function Board({ cartes, draggingId, opponentDrag, mousePos, dragOffset, onCardPointerDown, onCardClick }: BoardProps) {
   return (
     <div className="relative p-[60px_80px] bg-[radial-gradient(circle,_#2a723f_0%,_#113a1e_100%)] border-[18px] border-[#3e2723] rounded-[40px] shadow-[0_30px_60px_rgba(0,0,0,0.8),_inset_0_0_40px_rgba(0,0,0,0.8)]">
       <div className="absolute inset-1 border-3 border-[#d4af37] rounded-[20px] pointer-events-none shadow-[0_0_10px_rgba(212,175,55,0.4)]" />
@@ -33,7 +34,9 @@ export default function Board({ cartes, draggingId, mousePos, dragOffset, onCard
         ))}
 
         {cartes.map((carte) => {
-          const isDragging = carte.id === draggingId;
+          const isMeDragging = carte.id === draggingId;
+          const isOpponentDragging = opponentDrag !== null && carte.id === opponentDrag.id;
+          const isDragging = isMeDragging || isOpponentDragging;
           
           const cartesDeCetteZone = cartes
             .filter(c => c.zoneId === carte.zoneId)
@@ -54,13 +57,15 @@ export default function Board({ cartes, draggingId, mousePos, dragOffset, onCard
           };
 
           const carteStyle: React.CSSProperties = {
-            // Transition classique conservée pour les dépôts normaux
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
           };
 
           if (isDragging) {
-            carteStyle.left = `${mousePos.x - dragOffset.x}px`;
-            carteStyle.top = `${mousePos.y - dragOffset.y}px`;
+            const currentMouse = isMeDragging ? mousePos : (opponentDrag?.mousePos || { x: 0, y: 0 });
+            const currentOffset = isMeDragging ? dragOffset : (opponentDrag?.dragOffset || { x: 0, y: 0 });
+            
+            carteStyle.left = `${currentMouse.x - currentOffset.x}px`;
+            carteStyle.top = `${currentMouse.y - currentOffset.y}px`;
             carteStyle.margin = 0;
             carteStyle.position = 'fixed'; 
             carteStyle.zIndex = 9999;
@@ -79,7 +84,7 @@ export default function Board({ cartes, draggingId, mousePos, dragOffset, onCard
               symbole={carte.symbole}
               couleur={carte.couleur}
               isDragging={isDragging}
-              isDraggable={isTopCard && !carte.isFaceDown}
+              isDraggable={isTopCard && !carte.isFaceDown && !isOpponentDragging}
               isFaceDown={carte.isFaceDown}
               dosCouleur={carte.dosCouleur}
               style={carteStyle}

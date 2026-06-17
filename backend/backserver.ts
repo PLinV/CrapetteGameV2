@@ -5,6 +5,7 @@ import { initDB } from './repositories/database';
 import { createServer } from 'http'; 
 import { Server } from 'socket.io';
 import cron from 'node-cron';
+import { setupGameSockets } from './sockets/gameSocket';
 
 import { executeQuery } from './repositories/database';
 import router from './routes/routes';
@@ -16,11 +17,10 @@ const server = createServer(app);
 
 // on branche socket.io sur ce serveur HTTP
 const io = new Server(server, {
-    cors: {
-        origin: 'http://localhost:5173',
-        methods: ["GET", "POST"]
-    }
+    cors: { origin: 'http://localhost:5173', methods: ["GET", "POST"], credentials: true }
 });
+
+setupGameSockets(io);
 
 // config http
 app.use(cors({ 
