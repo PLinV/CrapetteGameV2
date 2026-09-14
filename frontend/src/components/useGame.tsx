@@ -1,4 +1,4 @@
-import { useState, useEffect, PointerEvent } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ZONES_PLATEAU } from '../../../constant/plateau';
 import { gameService } from '../services/gameService';
 
@@ -8,158 +8,114 @@ export type CarteData = {
 };
 
 export const useGame = (roomId: string) => {
-  // 1. RETOUR DES CARTES EN DUR
-  const [cartes, setCartes] = useState<CarteData[]>(() => {
-    const initialCards: CarteData[] = [];
-    for (let i = 1; i <= 13; i++) {
-      initialCards.push({ id: `c${i}`, val: i.toString(), symbole: '♠', couleur: 'noir', zoneId: '31', zOrder: i });
-    }
-    initialCards.push({ id: 'pioche-1', val: '5', symbole: '♣', couleur: 'noir', zoneId: '12', isFaceDown: true, dosCouleur: 'rouge', zOrder: 1 });
-    initialCards.push({ id: 'pioche-2', val: 'V', symbole: '♦', couleur: 'rouge', zoneId: '12', isFaceDown: true, dosCouleur: 'rouge', zOrder: 2 });
-    initialCards.push({ id: 'crap-1', val: 'R', symbole: '♥', couleur: 'rouge', zoneId: '13', isFaceDown: true, dosCouleur: 'bleu', zOrder: 1 });
-    return initialCards;
-  });
-
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [opponentDrag, setOpponentDrag] = useState<{ id: string, mousePos: {x:number, y:number}, dragOffset: {x:number, y:number} } | null>(null);
-
+  const [cartes, setCartes] = useState<CarteData[]>([]);
+  const [selectableZones, setSelectableZones] = useState<string[]>([]);
+  
   const [myId, setMyId] = useState<string>('');
+  const [p1Id, setP1Id] = useState<string>('');
   const [currentTurn, setCurrentTurn] = useState<string>('');
+  const [message, setMessage] = useState<string | null>(null);
+
+  const lastEmitRef = useRef<number>(0);
+
+  const showMessage = (msg: string) => {
+    setMessage(msg);
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   useEffect(() => {
     const handleRoleAssigned = (id: string) => setMyId(id);
     const handleGameStart = (gameState: any) => {
       setCurrentTurn(gameState.turn);
-      // ⚠️ ATTENTION : On a enlevé le setCartes(gameState.cartes) ici pour garder tes cartes en dur !
+      setCartes(gameState.cartes || []); 
+      setSelectableZones(gameState.selectableZones || []); 
+      setP1Id(gameState.player1 || '');
     };
-    const handleTurnUpdated = (newTurnId: string) => setCurrentTurn(newTurnId);
-    const handleOpponentDragging = (data: any) => setOpponentDrag(data);
-    const handleOpponentDrop = () => setOpponentDrag(null);
-    const handleCardSynced = (data: { cardId: string, updates: Partial<CarteData> }) => {
-      setCartes(prev => prev.map(c => c.id === data.cardId ? { ...c, ...data.updates } : c));
-    };
+    const handleTurnUpdated = (turnId: string) => setCurrentTurn(turnId);
+    
+    // ... (Logique DOM pur pour l'adversaire supprimée ici pour la clarté) ...
+    
+    const handleGrabError = (msg: string) => showMessage(`❌ ${msg}`);
+    const handleActionError = (msg: string) => showMessage(`⚠️ ${msg}`);
+    const handleCrapette = () => showMessage(`🚨 CRAPETTE DÉTECTÉE ! 🚨`);
 
     gameService.onRoleAssigned(handleRoleAssigned);
     gameService.onGameStart(handleGameStart);
     gameService.onTurnUpdated(handleTurnUpdated);
-    gameService.onOpponentDragging(handleOpponentDragging);
-    gameService.onOpponentDrop(handleOpponentDrop);
-    gameService.onCardSynced(handleCardSynced);
+    gameService.onCardGrabbedError(handleGrabError);
+    gameService.onActionError(handleActionError);
+    gameService.onCrapetteDetected(handleCrapette);
 
     return () => {
       gameService.offRoleAssigned(handleRoleAssigned);
       gameService.offGameStart(handleGameStart);
       gameService.offTurnUpdated(handleTurnUpdated);
-      gameService.offOpponentDragging(handleOpponentDragging);
-      gameService.offOpponentDrop(handleOpponentDrop);
-      gameService.offCardSynced(handleCardSynced);
+      gameService.offCardGrabbedError(handleGrabError);
+      gameService.offActionError(handleActionError);
+      gameService.offCrapetteDetected(handleCrapette);
     };
   }, []);
 
-  const handlePassTurn = () => {
-    gameService.passTurn(roomId);
-  };
+  // 🚨 DÉCLARATION FORMELLE DE LA FONCTION
+  const handlePassTurn = () => gameService.passTurn(roomId);
 
-  const handlePointerDown = (e: PointerEvent<HTMLDivElement>, carteId: string) => {
-    if (myId !== currentTurn) return; 
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const offset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    setDragOffset(offset);
-    setMousePos({ x: e.clientX, y: e.clientY });
-    setDraggingId(carteId);
-    e.preventDefault(); 
-  };
-
-const handleCardClick = (carteId: string) => {
+  const handleCardClick = (carteId: string) => {
     if (myId !== currentTurn) return;
+    const card = cartes.find(c => c.id === carteId);
+    if (!card) return;
 
-    setCartes(prev => {
-      const card = prev.find(c => c.id === carteId);
-      if (!card || !card.isFaceDown) return prev;
+    const isPlayer1 = myId === p1Id;
+    const maPioche = isPlayer1 ? '12' : '22';
 
-      const maxZ = Math.max(...prev.map(c => c.zOrder), 0);
-      let updates: Partial<CarteData> | null = null;
-
-      if (['13', '23'].includes(card.zoneId)) {
-        updates = { isFaceDown: false };
-      } else if (card.zoneId === '12') {
-        updates = { isFaceDown: false, zoneId: '11', zOrder: maxZ + 1 };
-      } else if (card.zoneId === '22') {
-        updates = { isFaceDown: false, zoneId: '21', zOrder: maxZ + 1 };
-      }
-
-      if (updates) {
-        setTimeout(() => {
-          gameService.syncCard(roomId, carteId, updates!);
-        }, 0);
-        return prev.map(c => c.id === carteId ? { ...c, ...updates } : c);
-      }
-      return prev;
-    });
+    if (card.zoneId === maPioche) {
+      gameService.drawCard(roomId);
+    } else if (card.zoneId === '12' || card.zoneId === '22') {
+      showMessage("❌ Vous ne pouvez pas toucher la pioche adverse !");
+    }
+  };
+  
+  const onDragStart = (carteId: string, zoneId: string) => {
+    if (myId !== currentTurn) return; 
+    gameService.cardPointerDown(roomId, zoneId);
   };
 
-  useEffect(() => {
-    const handlePointerMove = (e: globalThis.PointerEvent) => { 
-      if (draggingId) {
-        const currentPos = { x: e.clientX, y: e.clientY };
-        setMousePos(currentPos);
-        gameService.dragCard(roomId, draggingId, currentPos, dragOffset);
-      }
-    };
-
-    const handlePointerUp = (e: globalThis.PointerEvent) => {
-      if (draggingId) {
-        const elementsUnderMouse = document.elementsFromPoint(e.clientX, e.clientY);
-        const targetElement = elementsUnderMouse.find(el => el.closest('.zone') || el.closest('[data-zone]'));
-        
-        let isValidDrop = false; 
-
-        if (targetElement) {
-          const zoneDiv = targetElement.closest('.zone') as HTMLElement;
-          const cardWrapper = targetElement.closest('[data-zone]') as HTMLElement;
-          const newZoneId = (zoneDiv?.id) || (cardWrapper?.getAttribute('data-zone'));
-          
-          if (newZoneId && ZONES_PLATEAU.includes(newZoneId)) {
-            isValidDrop = true; 
-            
-            setCartes(prev => {
-              const maxZ = Math.max(...prev.map(c => c.zOrder));
-              const updates = { zoneId: newZoneId, zOrder: maxZ + 1 };
-              
-              setTimeout(() => {
-                gameService.syncCard(roomId, draggingId, updates);
-                gameService.dropCard(roomId); 
-              }, 0);
-              
-              return prev.map(c => c.id === draggingId ? { ...c, ...updates } : c);
-            });
-          }
-        }
-        
-        if (!isValidDrop) {
-            setTimeout(() => gameService.dropCard(roomId), 0);
-        }
-
-        setDraggingId(null);
-      }
-    };
-
-    if (draggingId) { 
-      window.addEventListener('pointermove', handlePointerMove); 
-      window.addEventListener('pointerup', handlePointerUp); 
+  const onDrag = (e: any, info: any, carteId: string) => {
+    const now = Date.now();
+    if (now - lastEmitRef.current > 80) {
+      gameService.dragCard(roomId, carteId, { x: info.point.x, y: info.point.y }, { x: 0, y: 0 });
+      lastEmitRef.current = now;
     }
-    return () => { 
-      window.removeEventListener('pointermove', handlePointerMove); 
-      window.removeEventListener('pointerup', handlePointerUp); 
-    };
-  }, [draggingId, dragOffset, roomId]);
+  };
+
+  const onDragEnd = (e: any, info: any, carteId: string) => {
+    const elementsUnderMouse = document.elementsFromPoint(info.point.x, info.point.y);
+    const targetElement = elementsUnderMouse.find(el => {
+      const dropZone = el.closest('[data-zone]');
+      const isSelf = dropZone && dropZone.getAttribute('data-card-id') === carteId;
+      return !isSelf && (el.closest('.zone') || dropZone);
+    });
+    
+    let newZoneId = "00";
+    if (targetElement) {
+      const zoneDiv = targetElement.closest('.zone') as HTMLElement;
+      const cardWrapper = targetElement.closest('[data-zone]') as HTMLElement;
+      const foundZoneId = (zoneDiv?.id) || (cardWrapper?.getAttribute('data-zone'));
+      if (foundZoneId && ZONES_PLATEAU.includes(foundZoneId)) newZoneId = foundZoneId;
+    }
+    gameService.cardDropZone(roomId, newZoneId);
+  };
 
   return { 
-    cartes, draggingId, opponentDrag, mousePos, dragOffset, 
-    handlePointerDown, handleCardClick, 
-    myId, currentTurn, handlePassTurn 
+    cartes, 
+    handleCardClick, 
+    onDragStart, 
+    onDrag, 
+    onDragEnd, 
+    handlePassTurn, 
+    myId, 
+    currentTurn, 
+    message, 
+    selectableZones, 
+    p1Id
   };
 };
