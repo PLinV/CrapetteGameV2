@@ -1,16 +1,16 @@
-# Production : base de données + application + Caddy (HTTPS automatique).
-# Lancement sur le serveur :  docker compose -f docker-compose.prod.yml up -d --build
+# Production derrière un Traefik déjà installé sur le serveur (il gère le HTTPS).
+# Lancement :  docker compose -f docker-compose.prod.yml up -d
 services:
   db:
     image: postgres:15
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # pas de "ports" : la base n'est pas accessible depuis internet
+    # ni "ports" ni réseau Traefik : la base n'est joignable que par l'appli
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
       interval: 5s
@@ -18,8 +18,10 @@ services:
       retries: 5
 
   app:
+    # Image publiée (ex : monpseudo/crapette:1.0). Sans image publiée, "--build" la construit depuis le code.
+    image: ${APP_IMAGE:-crapette:latest}
     build: .
-    restart: always
+    restart: unless-stopped
     env_file: .env
     environment:
       DB_HOST: db
@@ -27,21 +29,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - default # pour parler à la base
+      - traefik # pour recevoir le trafic de Traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.crapette.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.crapette.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.crapette.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.crapette.loadbalancer.server.port=3000
 
-  caddy:
-    image: caddy:2
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-    depends_on:
-      - app
+networks:
+  traefik:
+    external: true # réseau créé par l'installation Traefik du serveur
+    name: ${TRAEFIK_NETWORK:-traefik}
 
 volumes:
   pgdata:
-  caddy_data:

@@ -26,12 +26,18 @@ En production, le serveur refuse de démarrer s'ils manquent.
 
 ## Production
 
-```bash
-cp .env.example .env   # à la racine, remplir toutes les variables
-docker compose -f docker-compose.prod.yml up -d --build
-```
+L'appli tourne derrière un **Traefik** déjà installé sur le serveur, qui gère le HTTPS.
 
-Trois conteneurs : `db` (PostgreSQL, non exposé), `app` (Node) et `caddy` (HTTPS automatique pour `DOMAIN`).
+1. Construire et publier l'image (depuis ce dossier) :
+   ```bash
+   docker build -t monpseudo/crapette:1.0 .
+   docker push monpseudo/crapette:1.0
+   ```
+2. Sur le serveur, il suffit de `docker-compose.prod.yml` et d'un `.env` rempli à partir de `.env.example`
+   (domaine, image, secrets, réglages Traefik). Puis :
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
 
 Passer un compte admin :
 
