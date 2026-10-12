@@ -1,64 +1,42 @@
-import express, { Request, Response } from 'express';
+import 'dotenv/config'; // en premier : charge le .env avant les autres modules
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { initDB } from './repositories/database';
-import { createServer } from 'http'; 
-import { Server } from 'socket.io';
 import cron from 'node-cron';
-import { setupGameSockets } from './sockets/gameSocket';
-
-import { executeQuery } from './repositories/database';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import router from './routes/routes';
+import { setupGameSockets } from './sockets/gameSocket';
+import { initDB } from './repositories/database';
+import { deleteExpiredRefreshTokens } from './repositories/refresh_token_repositories';
+
+const PORT = process.env.PORT || 3000;
+const FRONT_URL = process.env.FRONT_URL || 'http://localhost:5173';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-const server = createServer(app); 
-
-// on branche socket.io sur ce serveur HTTP
-const io = new Server(server, {
-    cors: { origin: 'http://localhost:5173', methods: ["GET", "POST"], credentials: true }
-});
-
-setupGameSockets(io);
-
-// config http
-app.use(cors({ 
-    origin: 'http://localhost:5173',
-    credentials: true
-})); 
+app.use(cors({ origin: FRONT_URL, credentials: true }));
 app.use(express.json());
-app.use(cookieParser()); 
+app.use(cookieParser());
+app.use(router);
 
-app.use('/', router);
-
-app.get('/', (req: Request, res: Response) => {
-    res.send('Le serveur backend est bien lancé');
+// Express 5 transmet ici les erreurs levées par les contrôleurs async.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error(err);
+  res.status(500).json({ message: 'Erreur interne.' });
 });
 
-app.get('/api/test', (req: Request, res: Response) => {
-    res.json({ success: true, message: 'La communication HTTP fonctionne' });
-});
+const server = createServer(app);
+setupGameSockets(new Server(server, { cors: { origin: FRONT_URL, credentials: true } }));
 
-// config socket.io 
-io.on('connection', (socket) => {
-    console.log(`[SOCKET] Nouveau joueur connecté : ${socket.id}`);
-
-    socket.on('disconnect', () => {
-        console.log(`[SOCKET] Joueur déconnecté : ${socket.id}`);
-    });
-});
-
-initDB();
+// Tous les jours à 3h : suppression des refresh tokens expirés.
 cron.schedule('0 3 * * *', async () => {
-    try {
-        console.log("[CRON] Début du nettoyage des vieux tokens...");
-        const result = await executeQuery("DELETE FROM refresh_tokens WHERE expires_at < NOW() RETURNING id");
-        console.log(`[CRON] Nettoyage terminé. ${result.length} tokens supprimés.`);
-    } catch (error) {
-        console.error("[CRON] Erreur lors du nettoyage :", error);
-    }
+  try {
+    console.log(`[CRON] ${await deleteExpiredRefreshTokens()} refresh tokens expirés supprimés.`);
+  } catch (error) {
+    console.error('[CRON] Erreur lors du nettoyage :', error);
+  }
 });
-server.listen(PORT, () => {
-    console.log(`serveur mixte (HTTP + WebSockets) démarré sur http://localhost:${PORT}`);
+
+initDB().then(() => {
+  server.listen(PORT, () => console.log(`Serveur (HTTP + WebSockets) démarré sur http://localhost:${PORT}`));
 });

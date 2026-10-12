@@ -1,8 +1,4 @@
-// pour les futurs connexion multi
 import { io } from 'socket.io-client';
+import { API_URL } from './api';
 
-// On exporte une unique instance de Socket
-export const socket = io('http://localhost:3000', {
-    autoConnect: true,
-    credentials: true
-});
+export const socket = io(API_URL, { withCredentials: true });

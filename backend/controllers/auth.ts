@@ -1,203 +1,86 @@
 import { Request, Response } from 'express';
-import { executeQuery } from '../repositories/database';
+import { AuthRequest } from '../middleware/auth_middleware';
 import {
-  addUser,
-  getUserById,
-  getUserByUsername,
-  userExist,
-  verifLogin,
+  User, addUser, findUserByCredentials, getUserById, getUserByUsername,
 } from '../repositories/user_repositories';
-import {
-  createAccessToken,
-  createRefreshToken,
-  hashRefreshToken,
-} from '../controllers/token';
+import { consumeRefreshToken, deleteRefreshToken, saveRefreshToken } from '../repositories/refresh_token_repositories';
+import { createAccessToken, createRefreshToken, hashRefreshToken } from '../services/token';
 
-const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
-  // access Token (Court : 15 minutes)
-  res.cookie('access_token', accessToken, {
-    httpOnly: true, // invisible pour le JS côté client
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 15 * 60 * 1000, 
-    path: '/',
-  });
-
-  // refresh Token (Long : 7 jours)
-  res.cookie('refresh_token', refreshToken, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000, 
-    path: '/',
-  });
+const COOKIE_OPTIONS = {
+  httpOnly: true, // invisible pour le JS côté client
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
 };
 
-const clearAuthCookies = (res: Response) => {
-  res.clearCookie('access_token', { httpOnly: true, sameSite: 'lax', path: '/' });
-  res.clearCookie('refresh_token', { httpOnly: true, sameSite: 'lax', path: '/' });
-};
+// Crée un access token (15 min) et un refresh token (7 jours) en cookies.
+async function startSession(res: Response, user: User) {
+  const refreshToken = createRefreshToken();
+  await saveRefreshToken(user.id, hashRefreshToken(refreshToken));
 
-export const login = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { username, password } = req.body;
+  res.cookie('access_token', createAccessToken(user), { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
+  res.cookie('refresh_token', refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
+}
 
-    const estValide = await verifLogin(username, password);
-    if (!estValide) {
-      res.status(401).json({ confirm: false, message: "Pseudo ou mot de passe incorrect." });
-      return;
-    }
+function endSession(res: Response) {
+  res.clearCookie('access_token', COOKIE_OPTIONS);
+  res.clearCookie('refresh_token', COOKIE_OPTIONS);
+}
 
-    const user = await getUserByUsername(username);
-    if (!user) {
-      res.status(404).json({ confirm: false, message: "Utilisateur introuvable." });
-      return;
-    }
-
-    const accessToken = createAccessToken({ id: user.id, username: user.username });
-    const refreshToken = createRefreshToken();
-
-    // Nettoyage : On supprime les vieux tokens périmés de CE joueur
-    await executeQuery(
-      "DELETE FROM refresh_tokens WHERE user_id = $1 AND expires_at < NOW()",
-      [user.id]
-    );
-
-
-    const hashedRefresh = hashRefreshToken(refreshToken);
-    await executeQuery(
-      "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
-      [user.id, hashedRefresh]
-    );
-
-    setAuthCookies(res, accessToken, refreshToken);
-
-    res.status(200).json({ confirm: true, message: "Connexion réussie." });
-  } catch (error) {
-    console.error("Erreur Login:", error);
-    res.status(500).json({ confirm: false, message: "Erreur interne." });
+export const register = async (req: Request, res: Response) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    res.status(400).json({ message: 'Tous les champs sont requis.' });
+    return;
   }
-};
-
-export const register = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      res.status(400).json({ confirm: false, message: "Tous les champs sont requis." });
-      return;
-    }
-
-    const existeDeja = await userExist(username);
-    if (existeDeja) {
-      res.status(409).json({ confirm: false, message: "Pseudo déjà utilisé." });
-      return;
-    }
-
-    const succesAjout = await addUser(username, password);
-    if (!succesAjout) {
-      res.status(500).json({ confirm: false, message: "Erreur lors de la création." });
-      return;
-    }
-
-    const newUser = await getUserByUsername(username);
-    
-    const accessToken = createAccessToken({ id: newUser.id, username: newUser.username });
-    const refreshToken = createRefreshToken();
-
-    const hashedRefresh = hashRefreshToken(refreshToken);
-    await executeQuery(
-      "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
-      [newUser.id, hashedRefresh]
-    );
-
-    setAuthCookies(res, accessToken, refreshToken);
-
-    res.status(200).json({ confirm: true, message: "Inscription réussie." });
-  } catch (error) {
-    console.error("Erreur Register:", error);
-    res.status(500).json({ confirm: false, message: "Erreur interne." });
-  }
-};
-
-export const verifyUser = async (req: any, res: Response): Promise<void> => {
-  const infosUtilisateur = req.user; 
-  const user = await getUserById(infosUtilisateur.id);
-
-  if (!user) {
-    res.status(404).json({ confirm: false, message: "Utilisateur introuvable." });
+  if (await getUserByUsername(username)) {
+    res.status(409).json({ message: 'Pseudo déjà utilisé.' });
     return;
   }
 
-  res.status(200).json({
-    estConnecte: true,
-    username: user.username,
-  });
+  await startSession(res, await addUser(username, password));
+  res.json({ message: 'Inscription réussie.' });
 };
 
-export const refresh = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const refreshToken = req.cookies.refresh_token;
-
-    if (!refreshToken) {
-      res.status(401).json({ confirm: false, message: "Refresh token manquant." });
-      return;
-    }
-
-    const refreshTokenHash = hashRefreshToken(refreshToken);
-
-    const result = await executeQuery(
-      "SELECT user_id FROM refresh_tokens WHERE token_hash = $1",
-      [refreshTokenHash]
-    );
-
-    if (result.length === 0) {
-      clearAuthCookies(res);
-      res.status(401).json({ confirm: false, message: "Refresh token révoqué ou invalide." });
-      return;
-    }
-
-    const userId = result[0].user_id;
-    const user = await getUserById(userId);
-
-    const newAccessToken = createAccessToken({ id: user.id, username: user.username });
-    const newRefreshToken = createRefreshToken();
-    const newHash = hashRefreshToken(newRefreshToken);
-
-    await executeQuery("DELETE FROM refresh_tokens WHERE token_hash = $1", [refreshTokenHash]);
-    await executeQuery(
-      "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
-      [userId, newHash]
-    );
-
-    setAuthCookies(res, newAccessToken, newRefreshToken);
-
-    res.status(200).json({ confirm: true, message: "Tokens rafraîchis avec succès." });
-  } catch (error) {
-    console.error("Erreur Refresh:", error);
-    res.status(500).json({ confirm: false, message: "Erreur interne." });
+export const login = async (req: Request, res: Response) => {
+  const { username, password } = req.body;
+  const user = await findUserByCredentials(username, password);
+  if (!user) {
+    res.status(401).json({ message: 'Pseudo ou mot de passe incorrect.' });
+    return;
   }
+
+  await startSession(res, user);
+  res.json({ message: 'Connexion réussie.' });
 };
 
-export const logout = async (req: Request, res: Response): Promise<void> => {
-  const refreshToken = req.cookies.refresh_token;
-
-  if (refreshToken) {
-    const hash = hashRefreshToken(refreshToken);
-    await executeQuery("DELETE FROM refresh_tokens WHERE token_hash = $1", [hash]);
+export const me = async (req: AuthRequest, res: Response) => {
+  const user = await getUserById(req.user!.id);
+  if (!user) {
+    res.status(404).json({ message: 'Utilisateur introuvable.' });
+    return;
   }
-
-  clearAuthCookies(res);
-  res.status(200).json({ confirm: true, message: "Déconnexion réussie." });
+  res.json({ username: user.username });
 };
 
-export const logoutAll = async (req: any, res: Response): Promise<void> => {
-  const userId = req.user?.id; 
-  
-  if (userId) {
-    await executeQuery("DELETE FROM refresh_tokens WHERE user_id = $1", [userId]);
+// Échange un refresh token valide contre une nouvelle paire de tokens (rotation).
+export const refresh = async (req: Request, res: Response) => {
+  const token = req.cookies.refresh_token;
+  const userId = token ? await consumeRefreshToken(hashRefreshToken(token)) : null;
+  const user = userId ? await getUserById(userId) : null;
+  if (!user) {
+    endSession(res);
+    res.status(401).json({ message: 'Refresh token invalide ou expiré.' });
+    return;
   }
 
-  clearAuthCookies(res);
-  res.status(200).json({ confirm: true, message: "Déconnecté de tous les appareils." });
+  await startSession(res, user);
+  res.json({ message: 'Tokens rafraîchis.' });
+};
+
+export const logout = async (req: Request, res: Response) => {
+  const token = req.cookies.refresh_token;
+  if (token) await deleteRefreshToken(hashRefreshToken(token));
+  endSession(res);
+  res.json({ message: 'Déconnexion réussie.' });
 };
