@@ -1,0 +1,32 @@
+# Test local de l'image, sans Traefik ni HTTPS : le site est sur http://localhost:3000
+# Les secrets ci-dessous sont factices : ce fichier ne doit JAMAIS servir en production.
+#   docker compose -f docker-compose.test.yml up -d      (démarrer)
+#   docker compose -f docker-compose.test.yml down       (arrêter et tout effacer)
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: crapette
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: crapette
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "crapette", "-d", "crapette"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/plinv/crapettegamev2:latest}
+    ports:
+      - "127.0.0.1:${TEST_PORT:-3000}:3000" # localhost uniquement (les cookies sécurisés l'exigent)
+    environment:
+      POSTGRES_USER: crapette
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: crapette
+      DB_HOST: db
+      ACCESS_TOKEN_SECRET: test_access_secret
+      REFRESH_TOKEN_SECRET: test_refresh_secret
+      PEPPER: test_pepper
+    depends_on:
+      db:
+        condition: service_healthy
