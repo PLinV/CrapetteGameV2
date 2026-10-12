@@ -19,6 +19,8 @@ type GameState = {
   turn: string | null;
   cartes: CarteData[];
   selectableZones: string[];
+  winner: string | null; // userId du gagnant, null tant que la partie continue
+  rematchVotes: string[]; // userId des joueurs qui ont demandé la revanche
 };
 
 // Identifiant du joueur, conservé dans l'onglet pour retrouver sa place après un rechargement.
@@ -80,10 +82,12 @@ export function useGame(roomId: string) {
     message,
     isMyTurn: state?.turn === myId,
     isPlayer1: state?.players[0] === myId,
+    myId,
     draw: () => socket.emit('draw_card'),
     move: (from: string, to: string) => socket.emit('move_card', { from, to }),
     passTurn: () => socket.emit('pass_turn'),
     callCrapette: () => socket.emit('call_crapette'),
+    playAgain: () => socket.emit('play_again'),
     leave: () => socket.emit('leave_room'),
   };
 }

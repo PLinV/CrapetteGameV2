@@ -19,6 +19,8 @@ export type ClientCard = {
 
 export class Board {
   public activePlayer: PlayerNumber;
+  // Le premier joueur qui n'a plus de carte dans son jeu (crapette, talon, défausse) gagne.
+  public winner: PlayerNumber | null = null;
   // Après une pioche, il faut jouer la carte de sa défausse avant de pouvoir repiocher.
   private canDraw = true;
   // Vrai si la dernière action du joueur actif est une faute que l'adversaire peut sanctionner.
@@ -69,7 +71,7 @@ export class Board {
 
   // Zones dont le joueur actif peut prendre la carte du dessus.
   public canTakeFrom(zoneId: string): boolean {
-    if (!this.piles.has(zoneId) || this.pile(zoneId).isEmpty()) return false;
+    if (this.winner || !this.piles.has(zoneId) || this.pile(zoneId).isEmpty()) return false;
     const mine = playerZones(this.activePlayer);
     const theirs = playerZones(this.opponent);
 
@@ -120,13 +122,26 @@ export class Board {
     if (newTop) newTop.isFaceDown = false; // retourne la carte suivante de la crapette
     // On ne peut repiocher qu'après avoir joué la carte piochée, posée sur la défausse.
     if (from === playerZones(this.activePlayer).defausse) this.canDraw = true;
+    this.checkWinner();
     return true;
+  }
+
+  // Un joueur gagne quand sa crapette, son talon et sa défausse sont vides.
+  // On regarde aussi l'adversaire : on peut lui prendre sa dernière carte pour la monter aux fondations.
+  private checkWinner() {
+    for (const player of [this.activePlayer, this.opponent]) {
+      const { crapette, talon, defausse } = playerZones(player);
+      if ([crapette, talon, defausse].every((zoneId) => this.pile(zoneId).isEmpty())) {
+        this.winner = player;
+        return;
+      }
+    }
   }
 
   // Retourne la carte du talon sur la défausse.
   public draw(): boolean {
     const { talon, defausse } = playerZones(this.activePlayer);
-    if (!this.canDraw || this.pile(talon).isEmpty()) return false;
+    if (this.winner || !this.canDraw || this.pile(talon).isEmpty()) return false;
 
     this.lastActionWasFoul = this.canGoUp();
     this.pile(defausse).add(this.pile(talon).take()!);
@@ -150,7 +165,7 @@ export class Board {
 
   // L'adversaire crie « Crapette ! » : si la dernière action était une faute, le tour lui revient.
   public callCrapette(): boolean {
-    if (!this.lastActionWasFoul) return false;
+    if (this.winner || !this.lastActionWasFoul) return false;
     this.passTurn();
     return true;
   }

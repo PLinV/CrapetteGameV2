@@ -5,6 +5,7 @@ import { useGame } from '../hooks/useGame';
 import { useFitScale } from '../hooks/useFitScale';
 import Board from '../components/Board';
 import WaitingPopup from '../components/WaitingPopup';
+import GameOverPopup from '../components/GameOverPopup';
 
 const MESSAGE_STYLES = {
   error: 'bg-red-600/90 border-red-400 shadow-[0_10px_40px_rgba(220,38,38,0.5)] text-white',
@@ -14,7 +15,8 @@ const MESSAGE_STYLES = {
 export default function Game() {
   const roomId = useParams<{ roomId: string }>().roomId!;
   const navigate = useNavigate();
-  const { state, message, isMyTurn, isPlayer1, draw, move, passTurn, callCrapette, leave } = useGame(roomId);
+  const { state, message, isMyTurn, isPlayer1, myId, draw, move, passTurn, callCrapette, playAgain, leave } = useGame(roomId);
+  const isOver = !!state?.winner;
 
   // Le plateau a une taille fixe : on le met à l'échelle pour qu'il tienne dans la fenêtre.
   const boardRef = useRef<HTMLDivElement>(null);
@@ -29,6 +31,16 @@ export default function Game() {
     <div className="relative flex items-center justify-center w-full h-dvh bg-neutral-900 overflow-hidden select-none">
       {!state && <WaitingPopup roomId={roomId} />}
 
+      {state?.winner && (
+        <GameOverPopup
+          won={state.winner === myId}
+          iAskedRematch={state.rematchVotes.includes(myId)}
+          opponentAskedRematch={state.rematchVotes.some((id) => id !== myId)}
+          onPlayAgain={playAgain}
+          onLeave={handleLeave}
+        />
+      )}
+
       <button
         onClick={handleLeave}
         className="absolute top-8 left-8 flex items-center gap-2 text-sm font-black uppercase tracking-widest text-gray-400 hover:text-amber-400 transition-colors group z-50 cursor-pointer"
@@ -41,7 +53,9 @@ export default function Game() {
         <div className="absolute top-8 right-8 z-50 p-4 bg-black/80 rounded-2xl border border-neutral-700 backdrop-blur-md shadow-2xl flex flex-col gap-1 min-w-[220px] items-end">
           <p className="text-[10px] font-bold uppercase text-gray-500 tracking-widest">Statut de la table</p>
           <div className="text-sm font-black uppercase tracking-widest mt-1">
-            {isMyTurn ? (
+            {isOver ? (
+              <span className="text-gray-400">Partie terminée</span>
+            ) : isMyTurn ? (
               <span className="text-green-400 flex items-center gap-3">
                 À vous de jouer
                 <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_10px_#4ade80]" />
@@ -56,7 +70,7 @@ export default function Game() {
         </div>
       )}
 
-      {state && isMyTurn && (
+      {state && isMyTurn && !isOver && (
         <button
           onClick={passTurn}
           className="absolute bottom-8 left-8 z-50 group flex items-center gap-4 bg-gradient-to-b from-neutral-800 to-neutral-950 hover:from-neutral-700 hover:to-neutral-900 text-white font-black uppercase tracking-widest px-8 py-4 rounded-full shadow-[0_15px_30px_rgba(0,0,0,0.6)] border-2 border-neutral-700 active:scale-95 transition-all cursor-pointer"
@@ -82,10 +96,10 @@ export default function Game() {
             cartes={state?.cartes ?? []}
             selectableZones={state?.selectableZones ?? []}
             isPlayer1={isPlayer1}
-            isMyTurn={isMyTurn}
+            isMyTurn={isMyTurn && !isOver}
             onDraw={draw}
             onMove={move}
-            canCallCrapette={!!state && !isMyTurn}
+            canCallCrapette={!!state && !isMyTurn && !isOver}
             onCrapette={callCrapette}
           />
         </div>

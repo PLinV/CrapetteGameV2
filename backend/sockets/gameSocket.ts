@@ -7,11 +7,11 @@ export function setupGameSockets(io: Server) {
   const sendState = (roomId: string, room: GameRoom) => io.to(roomId).emit('game_state', room.state());
 
   io.on('connection', (socket: Socket) => {
-    // Le plateau de la partie du socket, uniquement si c'est à lui de jouer.
+    // Le plateau de la partie du socket, uniquement si c'est à lui de jouer et que la partie n'est pas finie.
     const myTurnBoard = () => {
       const room = rooms.get(socket.data.roomId);
       const board = room?.board;
-      if (!room || !board || room.playerNumber(socket.data.userId) !== board.activePlayer) return null;
+      if (!room || !board || board.winner || room.playerNumber(socket.data.userId) !== board.activePlayer) return null;
       return { room, board };
     };
 
@@ -70,6 +70,11 @@ export function setupGameSockets(io: Server) {
       }
       io.to(socket.data.roomId).emit('crapette_called', socket.data.userId);
       sendState(socket.data.roomId, room);
+    });
+
+    socket.on('play_again', () => {
+      const room = rooms.get(socket.data.roomId);
+      if (room?.voteRematch(socket.data.userId)) sendState(socket.data.roomId, room);
     });
 
     socket.on('pass_turn', () => {

@@ -6,6 +6,8 @@ export class GameRoom {
   public players: [string | null, string | null] = [null, null];
   // La partie n'existe que lorsque les deux joueurs sont à table.
   public board: Board | null = null;
+  // Joueurs qui veulent rejouer après la fin de la partie.
+  private rematchVotes = new Set<string>();
 
   // Renvoie le numéro du joueur, ou null si la table est pleine.
   // Un joueur déjà assis (rechargement de page) retrouve sa place.
@@ -25,6 +27,18 @@ export class GameRoom {
   public leave(userId: string) {
     this.players = this.players.map((id) => (id === userId ? null : id)) as GameRoom['players'];
     this.board = null;
+    this.rematchVotes.clear();
+  }
+
+  // Une nouvelle partie démarre quand les deux joueurs ont demandé la revanche.
+  public voteRematch(userId: string): boolean {
+    if (!this.board?.winner || !this.playerNumber(userId)) return false;
+    this.rematchVotes.add(userId);
+    if (this.rematchVotes.size === 2) {
+      this.board = new Board();
+      this.rematchVotes.clear();
+    }
+    return true;
   }
 
   public isEmpty(): boolean {
@@ -42,6 +56,8 @@ export class GameRoom {
       turn: this.board ? this.players[this.board.activePlayer - 1] : null,
       cartes: this.board?.clientCards() ?? [],
       selectableZones: this.board?.selectableZones() ?? [],
+      winner: this.board?.winner ? this.players[this.board.winner - 1] : null,
+      rematchVotes: [...this.rematchVotes],
     };
   }
 }
