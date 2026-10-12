@@ -21,7 +21,7 @@ npm install && npm run dev  # http://localhost:5173
 
 | Zone | Rôle |
 |---|---|
-| `11` / `21` | défausse du joueur 1 (haut) / joueur 2 (bas) |
+| `11` / `21` | défausse du joueur 1 / joueur 2 (chacun voit ses zones en bas) |
 | `12` / `22` | talon (pioche) |
 | `13` / `23` | crapette (13 cartes) |
 | `31`-`38` | centre : -1 en alternant rouge/noir, n'importe quelle carte sur une place vide |

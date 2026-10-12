@@ -1,6 +1,4 @@
-import { ZONES } from '../../../constant/plateau';
-
-// Position de chaque zone dans la grille du plateau (28 colonnes x 6 lignes).
+// Position de chaque zone dans la grille du plateau (28 colonnes x 6 lignes), vue du joueur 2.
 const PLACEMENTS: Record<string, { gridColumn: number; gridRow: number }> = {
   '11': { gridColumn: 10, gridRow: 1 }, '12': { gridColumn: 14, gridRow: 1 }, '13': { gridColumn: 18, gridRow: 1 },
   '21': { gridColumn: 10, gridRow: 6 }, '22': { gridColumn: 14, gridRow: 6 }, '23': { gridColumn: 18, gridRow: 6 },
@@ -10,14 +8,14 @@ const PLACEMENTS: Record<string, { gridColumn: number; gridRow: number }> = {
   '51': { gridColumn: 24, gridRow: 2 }, '52': { gridColumn: 24, gridRow: 3 }, '53': { gridColumn: 24, gridRow: 4 }, '54': { gridColumn: 24, gridRow: 5 },
 };
 
-export const getGridPlacement = (zoneId: string) => ({ ...PLACEMENTS[zoneId], placeSelf: 'center' });
+// `flipped` retourne le plateau de haut en bas, pour que le joueur 1 voie aussi ses cartes en bas de l'écran.
+export const getGridPlacement = (zoneId: string, flipped: boolean) => {
+  const { gridColumn, gridRow } = PLACEMENTS[zoneId];
+  return { gridColumn, gridRow: flipped ? 7 - gridRow : gridRow, placeSelf: 'center' };
+};
 
 // Les fondations (4x, 5x) sont couchées sur les côtés du plateau.
 export const isHorizontalZone = (zoneId: string) => zoneId.startsWith('4') || zoneId.startsWith('5');
 
-// Décalage vertical entre les cartes empilées au centre (vers le haut pour la 1re rangée, vers le bas pour la 2e).
-export const stackOffset = (zoneId: string) => {
-  if (ZONES.centre.slice(0, 4).includes(zoneId)) return -50;
-  if (ZONES.centre.slice(4).includes(zoneId)) return 50;
-  return 0;
-};
+// Décalage vertical entre les cartes empilées au centre : vers le haut pour la rangée du haut, vers le bas pour l'autre.
+export const stackOffset = (gridRow: number) => (gridRow === 3 ? -50 : gridRow === 4 ? 50 : 0);

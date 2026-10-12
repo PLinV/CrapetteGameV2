@@ -21,6 +21,8 @@ export class Board {
   public activePlayer: PlayerNumber;
   // Après une pioche, il faut jouer la carte de sa défausse avant de pouvoir repiocher.
   private canDraw = true;
+  // Vrai si la dernière action du joueur actif est une faute que l'adversaire peut sanctionner.
+  private lastActionWasFoul = false;
   private piles = new Map<string, Pack>(ZONES_PLATEAU.map((zoneId) => [zoneId, new Pack()]));
 
   constructor() {
@@ -112,6 +114,7 @@ export class Board {
     const card = this.pile(from).top()!;
     if (!this.canPlace(card, from, to)) return false;
 
+    this.lastActionWasFoul = !isFondation(to) && this.canGoUp();
     this.pile(to).add(this.pile(from).take()!);
     const newTop = this.pile(from).top();
     if (newTop) newTop.isFaceDown = false; // retourne la carte suivante de la crapette
@@ -125,6 +128,7 @@ export class Board {
     const { talon, defausse } = playerZones(this.activePlayer);
     if (!this.canDraw || this.pile(talon).isEmpty()) return false;
 
+    this.lastActionWasFoul = this.canGoUp();
     this.pile(defausse).add(this.pile(talon).take()!);
     this.canDraw = false;
     return true;
@@ -133,6 +137,22 @@ export class Board {
   public passTurn() {
     this.activePlayer = this.opponent;
     this.canDraw = true;
+    this.lastActionWasFoul = false;
+  }
+
+  // Faute : le joueur pouvait monter une carte aux fondations et a fait autre chose.
+  private canGoUp(): boolean {
+    return this.selectableZones().some((from) => {
+      const card = this.pile(from).top()!;
+      return ZONES.fondations.some((to) => this.canPlace(card, from, to));
+    });
+  }
+
+  // L'adversaire crie « Crapette ! » : si la dernière action était une faute, le tour lui revient.
+  public callCrapette(): boolean {
+    if (!this.lastActionWasFoul) return false;
+    this.passTurn();
+    return true;
   }
 
   public selectableZones(): string[] {

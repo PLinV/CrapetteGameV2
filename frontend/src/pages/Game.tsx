@@ -1,12 +1,24 @@
+import { useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import { useGame } from '../hooks/useGame';
+import { useFitScale } from '../hooks/useFitScale';
 import Board from '../components/Board';
 import WaitingPopup from '../components/WaitingPopup';
+
+const MESSAGE_STYLES = {
+  error: 'bg-red-600/90 border-red-400 shadow-[0_10px_40px_rgba(220,38,38,0.5)] text-white',
+  crapette: 'bg-gradient-to-b from-[#ffe8a1] to-[#d4af37] border-white shadow-[0_10px_40px_rgba(212,175,55,0.6)] text-[#8b0000]',
+};
 
 export default function Game() {
   const roomId = useParams<{ roomId: string }>().roomId!;
   const navigate = useNavigate();
-  const { state, message, isMyTurn, isPlayer1, draw, move, passTurn, leave } = useGame(roomId);
+  const { state, message, isMyTurn, isPlayer1, draw, move, passTurn, callCrapette, leave } = useGame(roomId);
+
+  // Le plateau a une taille fixe : on le met à l'échelle pour qu'il tienne dans la fenêtre.
+  const boardRef = useRef<HTMLDivElement>(null);
+  const scale = useFitScale(boardRef);
 
   const handleLeave = () => {
     leave();
@@ -14,12 +26,12 @@ export default function Game() {
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen bg-neutral-900 overflow-hidden select-none">
+    <div className="relative flex items-center justify-center w-full h-dvh bg-neutral-900 overflow-hidden select-none">
       {!state && <WaitingPopup roomId={roomId} />}
 
       <button
         onClick={handleLeave}
-        className="absolute top-20 left-12 flex items-center gap-2 text-sm font-black uppercase tracking-widest text-gray-400 hover:text-amber-400 transition-colors group z-50 cursor-pointer"
+        className="absolute top-8 left-8 flex items-center gap-2 text-sm font-black uppercase tracking-widest text-gray-400 hover:text-amber-400 transition-colors group z-50 cursor-pointer"
       >
         <span className="text-xl transition-transform group-hover:-translate-x-2">←</span>
         Menu Principal
@@ -44,30 +56,40 @@ export default function Game() {
         </div>
       )}
 
-      {isMyTurn && (
+      {state && isMyTurn && (
         <button
           onClick={passTurn}
-          className="absolute bottom-16 left-8 z-50 group flex items-center gap-4 bg-gradient-to-b from-neutral-800 to-neutral-950 hover:from-neutral-700 hover:to-neutral-900 text-white font-black uppercase tracking-widest px-8 py-4 rounded-full shadow-[0_15px_30px_rgba(0,0,0,0.6)] border-2 border-neutral-700 active:scale-95 transition-all cursor-pointer"
+          className="absolute bottom-8 left-8 z-50 group flex items-center gap-4 bg-gradient-to-b from-neutral-800 to-neutral-950 hover:from-neutral-700 hover:to-neutral-900 text-white font-black uppercase tracking-widest px-8 py-4 rounded-full shadow-[0_15px_30px_rgba(0,0,0,0.6)] border-2 border-neutral-700 active:scale-95 transition-all cursor-pointer"
         >
           <span className="text-amber-500 group-hover:text-amber-400 transition-colors">Passer mon tour</span>
           <span className="text-xl group-hover:translate-x-1.5 transition-transform">⏭️</span>
         </button>
       )}
 
+
       {message && (
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 bg-red-600/90 text-white rounded-2xl shadow-[0_10px_40px_rgba(220,38,38,0.5)] border-2 border-red-400 backdrop-blur-md animate-bounce pointer-events-none text-center min-w-[300px]">
-          <p className="font-black tracking-widest uppercase text-lg drop-shadow-md">⚠️ {message}</p>
+        <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-2xl border-2 backdrop-blur-md animate-bounce pointer-events-none text-center min-w-[300px] ${MESSAGE_STYLES[message.kind]}`}>
+          <p className="font-black tracking-widest uppercase text-lg drop-shadow-md">
+            {message.kind === 'crapette' ? '🚨' : '⚠️'} {message.text}
+          </p>
         </div>
       )}
 
-      <Board
-        cartes={state?.cartes ?? []}
-        selectableZones={state?.selectableZones ?? []}
-        isPlayer1={isPlayer1}
-        isMyTurn={isMyTurn}
-        onDraw={draw}
-        onMove={move}
-      />
+      {/* transformPagePoint corrige le glisser-déposer de framer-motion sous le scale. */}
+      <MotionConfig transformPagePoint={(p) => ({ x: p.x / scale, y: p.y / scale })}>
+        <div ref={boardRef} className="shrink-0" style={{ transform: `scale(${scale})` }}>
+          <Board
+            cartes={state?.cartes ?? []}
+            selectableZones={state?.selectableZones ?? []}
+            isPlayer1={isPlayer1}
+            isMyTurn={isMyTurn}
+            onDraw={draw}
+            onMove={move}
+            canCallCrapette={!!state && !isMyTurn}
+            onCrapette={callCrapette}
+          />
+        </div>
+      </MotionConfig>
     </div>
   );
 }

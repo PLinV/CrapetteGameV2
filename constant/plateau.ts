@@ -1,8 +1,9 @@
 // Zones du plateau, partagées entre le frontend et le backend.
 // Le premier chiffre donne le groupe, le second la position dans le groupe.
+// À l'écran, chaque joueur voit ses propres zones en bas.
 export const ZONES = {
-  joueur1: { defausse: '11', talon: '12', crapette: '13' }, // haut
-  joueur2: { defausse: '21', talon: '22', crapette: '23' }, // bas
+  joueur1: { defausse: '11', talon: '12', crapette: '13' }, // cartes rouges
+  joueur2: { defausse: '21', talon: '22', crapette: '23' }, // cartes bleues
   centre: ['31', '32', '33', '34', '35', '36', '37', '38'],
   fondations: ['41', '42', '43', '44', '51', '52', '53', '54'], // As -> Roi
 };

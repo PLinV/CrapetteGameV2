@@ -57,6 +57,21 @@ export function setupGameSockets(io: Server) {
       sendState(socket.data.roomId, game.room);
     });
 
+    // Seul l'adversaire du joueur actif peut crier « Crapette ! ».
+    socket.on('call_crapette', () => {
+      const room = rooms.get(socket.data.roomId);
+      const board = room?.board;
+      const caller = room?.playerNumber(socket.data.userId);
+      if (!room || !board || !caller || caller === board.activePlayer) return;
+
+      if (!board.callCrapette()) {
+        socket.emit('action_error', "Pas de faute : la Crapette est refusée.");
+        return;
+      }
+      io.to(socket.data.roomId).emit('crapette_called', socket.data.userId);
+      sendState(socket.data.roomId, room);
+    });
+
     socket.on('pass_turn', () => {
       const game = myTurnBoard();
       if (!game) return;

@@ -2,7 +2,7 @@ import { Board } from './Board';
 import { PlayerNumber } from '../../constant/plateau';
 
 export class GameRoom {
-  // userId des joueurs : index 0 = joueur 1 (haut), index 1 = joueur 2 (bas).
+  // userId des joueurs : index 0 = joueur 1 (cartes rouges), index 1 = joueur 2 (cartes bleues).
   public players: [string | null, string | null] = [null, null];
   // La partie n'existe que lorsque les deux joueurs sont à table.
   public board: Board | null = null;
