@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../services/socket';
 import { fetchWithAuth } from '../services/api';
@@ -17,39 +17,47 @@ export type AdminAction = 'nearly_win' | 'give_turn' | 'force_win' | 'new_game';
 
 type Message = { text: string; kind: 'error' | 'crapette' };
 
+type Seat = 1 | 2; // 1 = cartes rouges, 2 = cartes bleues
+
 type GameState = {
-  players: [string | null, string | null];
-  turn: string | null;
+  turn: Seat | null;
   cartes: CarteData[];
   selectableZones: string[];
-  winner: string | null; // userId du gagnant, null tant que la partie continue
-  rematchVotes: string[]; // userId des joueurs qui ont demandé la revanche
+  winner: Seat | null; // null tant que la partie continue
+  rematchVotes: Seat[]; // joueurs qui ont demandé la revanche
 };
 
-// Identifiant du joueur, conservé dans l'onglet pour retrouver sa place après un rechargement.
-function getUserId(): string {
-  let userId = sessionStorage.getItem('crapette_userId');
-  if (!userId) {
-    userId = 'player_' + Math.random().toString(36).substring(2, 10);
-    sessionStorage.setItem('crapette_userId', userId);
+// Jeton secret du joueur, conservé dans l'onglet pour retrouver sa place après un rechargement.
+// Il n'est jamais transmis à l'adversaire.
+function getPlayerToken(): string {
+  let token = sessionStorage.getItem('crapette_token');
+  if (!token) {
+    token = crypto.randomUUID();
+    sessionStorage.setItem('crapette_token', token);
   }
-  return userId;
+  return token;
 }
 
 export function useGame(roomId: string) {
   const navigate = useNavigate();
-  const [myId] = useState(getUserId);
+  const [token] = useState(getPlayerToken);
+  const [mySeat, setMySeat] = useState<Seat | null>(null);
+  const mySeatRef = useRef<Seat | null>(null);
   const [state, setState] = useState<GameState | null>(null); // null = en attente d'un adversaire
   const [message, setMessage] = useState<Message | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const join = () => socket.emit('join_room', { roomId, userId: myId });
+    const join = () => socket.emit('join_room', { roomId, token });
+    const onSeat = (seat: Seat) => {
+      mySeatRef.current = seat;
+      setMySeat(seat);
+    };
     const onWaiting = () => setState(null);
     const onActionError = (text: string) => setMessage({ text, kind: 'error' });
-    const onCrapette = (callerId: string) =>
+    const onCrapette = (callerSeat: Seat) =>
       setMessage({
-        text: callerId === myId ? 'Crapette ! À vous de jouer' : 'Crapette ! Votre adversaire reprend la main',
+        text: callerSeat === mySeatRef.current ? 'Crapette ! À vous de jouer' : 'Crapette ! Votre adversaire reprend la main',
         kind: 'crapette',
       });
     const onRoomError = (msg: string) => {
@@ -58,6 +66,7 @@ export function useGame(roomId: string) {
     };
 
     socket.on('connect', join); // à chaque connexion, y compris après une coupure réseau
+    socket.on('seat', onSeat);
     socket.on('game_state', setState);
     socket.on('waiting_for_opponent', onWaiting);
     socket.on('action_error', onActionError);
@@ -78,13 +87,14 @@ export function useGame(roomId: string) {
       cancelled = true;
       socket.disconnect();
       socket.off('connect', join);
+      socket.off('seat', onSeat);
       socket.off('game_state', setState);
       socket.off('waiting_for_opponent', onWaiting);
       socket.off('action_error', onActionError);
       socket.off('crapette_called', onCrapette);
       socket.off('room_error', onRoomError);
     };
-  }, [roomId, myId, navigate]);
+  }, [roomId, token, navigate]);
 
   useEffect(() => {
     if (!message) return;
@@ -95,9 +105,9 @@ export function useGame(roomId: string) {
   return {
     state,
     message,
-    isMyTurn: state?.turn === myId,
-    isPlayer1: state?.players[0] === myId,
-    myId,
+    mySeat,
+    isMyTurn: !!state && state.turn === mySeat,
+    isPlayer1: mySeat === 1,
     draw: () => socket.emit('draw_card'),
     move: (from: string, to: string) => socket.emit('move_card', { from, to }),
     passTurn: () => socket.emit('pass_turn'),

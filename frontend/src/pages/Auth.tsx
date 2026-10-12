@@ -37,7 +37,6 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
       const response = await fetch(`${API_URL}/${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // pour recevoir les cookies d'auth
         body: JSON.stringify({ username, password }),
       });
       const data = await response.json();
@@ -72,13 +71,13 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <label className="flex flex-col gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
             <span className="pl-1">Nom d'utilisateur / Pseudo</span>
-            <input type="text" required placeholder="Ex: ElProfesor" value={username}
+            <input type="text" required maxLength={20} placeholder="Ex: ElProfesor" value={username}
               onChange={(e) => setUsername(e.target.value)} className={`${inputClass} text-base normal-case tracking-normal`} />
           </label>
 
           <label className="flex flex-col gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
             <span className="pl-1">Mot de passe</span>
-            <input type="password" required placeholder="••••••••" value={password}
+            <input type="password" required minLength={mode === 'register' ? 8 : undefined} maxLength={72} placeholder="••••••••" value={password}
               onChange={(e) => setPassword(e.target.value)} className={`${inputClass} text-base normal-case tracking-normal`} />
           </label>
 

@@ -1,0 +1,5 @@
+# Caddy obtient et renouvelle tout seul le certificat HTTPS pour le domaine.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+}

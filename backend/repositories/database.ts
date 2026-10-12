@@ -1,12 +1,9 @@
 import { Pool } from 'pg';
+import { config } from '../config';
 
-const pool = new Pool({
-  user: process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
-  database: process.env.POSTGRES_DB,
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 5432,
-});
+const pool = new Pool(config.db);
+// Une connexion inactive qui tombe ne doit pas faire planter le serveur.
+pool.on('error', (err) => console.error('[DB] Erreur de connexion :', err.message));
 
 export async function query<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
   const { rows } = await pool.query(sql, params);

@@ -17,7 +17,7 @@ export default function Game() {
   const roomId = useParams<{ roomId: string }>().roomId!;
   const navigate = useNavigate();
   const {
-    state, message, isMyTurn, isPlayer1, myId, isAdmin,
+    state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
     draw, move, passTurn, callCrapette, playAgain, adminAction, leave,
   } = useGame(roomId);
   const isOver = !!state?.winner;
@@ -39,9 +39,9 @@ export default function Game() {
 
       {state?.winner && (
         <GameOverPopup
-          won={state.winner === myId}
-          iAskedRematch={state.rematchVotes.includes(myId)}
-          opponentAskedRematch={state.rematchVotes.some((id) => id !== myId)}
+          won={state.winner === mySeat}
+          iAskedRematch={!!mySeat && state.rematchVotes.includes(mySeat)}
+          opponentAskedRematch={state.rematchVotes.some((seat) => seat !== mySeat)}
           onPlayAgain={playAgain}
           onLeave={handleLeave}
         />

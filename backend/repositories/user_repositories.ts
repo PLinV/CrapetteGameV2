@@ -1,14 +1,17 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
+import { config } from '../config';
 import { query } from './database';
 
-const PEPPER = process.env.PEPPER || 'CrapetteSecretPepper';
+const BCRYPT_ROUNDS = 12;
+// Hash comparé quand le pseudo n'existe pas, pour que la réponse prenne le même temps.
+const DUMMY_HASH = bcrypt.hashSync('dummy', BCRYPT_ROUNDS);
 
 export type User = { id: number; username: string; isAdmin: boolean };
 
 const USER_COLUMNS = 'id, username, is_admin AS "isAdmin"';
 
 export async function addUser(username: string, password: string): Promise<User> {
-  const hash = await bcrypt.hash(password + PEPPER, 10);
+  const hash = await bcrypt.hash(password + config.pepper, BCRYPT_ROUNDS);
   const [user] = await query<User>(
     `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING ${USER_COLUMNS}`,
     [username, hash],
@@ -32,6 +35,7 @@ export async function findUserByCredentials(username: string, password: string):
     `SELECT ${USER_COLUMNS}, password FROM users WHERE username = $1`,
     [username],
   );
-  if (!row || !(await bcrypt.compare(password + PEPPER, row.password))) return null;
+  const valid = await bcrypt.compare(password + config.pepper, row?.password ?? DUMMY_HASH);
+  if (!row || !valid) return null;
   return { id: row.id, username: row.username, isAdmin: row.isAdmin };
 }

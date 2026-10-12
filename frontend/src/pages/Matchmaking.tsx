@@ -27,7 +27,7 @@ export default function Matchmaking() {
 
         <label className="flex flex-col gap-2 z-10 text-sm font-bold uppercase tracking-wider text-gray-400 text-center">
           Nom de la table secrète
-          <input type="text" placeholder="Ex: Table_Alpha" value={roomId} onChange={(e) => setRoomId(e.target.value)}
+          <input type="text" maxLength={30} placeholder="Ex: Table_Alpha" value={roomId} onChange={(e) => setRoomId(e.target.value)}
             className={`${inputClass} text-lg text-center normal-case tracking-normal`} />
         </label>
 

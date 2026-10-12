@@ -1,38 +1,28 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "backserver.ts",
+  "main": "dist/backend/backserver.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only backserver.ts"
+    "dev": "ts-node-dev --respawn --transpile-only backserver.ts",
+    "build": "tsc",
+    "start": "node dist/backend/backserver.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/PLinV/CrapetteGameV2.git"
-  },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/PLinV/CrapetteGameV2/issues"
-  },
-  "homepage": "https://github.com/PLinV/CrapetteGameV2#readme",
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
-    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.2.1",
     "pg": "^8.21.0",
     "socket.io": "^4.2.0"
   },
   "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
-    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.3",
@@ -40,5 +30,6 @@
     "@types/pg": "^8.20.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.7.2"
-  }
+  },
+  "private": true
 }

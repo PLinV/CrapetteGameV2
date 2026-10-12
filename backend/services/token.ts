@@ -1,20 +1,21 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { config } from '../config';
 import { User } from '../repositories/user_repositories';
 
 // Le rôle admin n'est pas mis dans le token : il est relu en base à chaque vérification.
 type TokenUser = Pick<User, 'id' | 'username'>;
 
-const ACCESS_SECRET = process.env.ACCESS_TOKEN_SECRET || 'secret_access_temporaire';
-const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET || 'secret_refresh_temporaire';
-
 export function createAccessToken(user: TokenUser): string {
-  return jwt.sign({ id: user.id, username: user.username }, ACCESS_SECRET, { algorithm: 'HS256', expiresIn: '15m' });
+  return jwt.sign({ id: user.id, username: user.username }, config.accessTokenSecret, {
+    algorithm: 'HS256',
+    expiresIn: '15m',
+  });
 }
 
 export function verifyAccessToken(token: string): TokenUser | null {
   try {
-    return jwt.verify(token, ACCESS_SECRET) as TokenUser;
+    return jwt.verify(token, config.accessTokenSecret, { algorithms: ['HS256'] }) as TokenUser;
   } catch {
     return null;
   }
@@ -26,5 +27,5 @@ export function createRefreshToken(): string {
 }
 
 export function hashRefreshToken(token: string): string {
-  return crypto.createHmac('sha256', REFRESH_SECRET).update(token).digest('hex');
+  return crypto.createHmac('sha256', config.refreshTokenSecret).update(token).digest('hex');
 }
