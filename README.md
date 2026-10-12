@@ -28,11 +28,13 @@ En production, le serveur refuse de démarrer s'ils manquent.
 
 L'appli tourne derrière un **Traefik** déjà installé sur le serveur, qui gère le HTTPS.
 
-1. Construire et publier l'image (depuis ce dossier) :
-   ```bash
-   docker build -t monpseudo/crapette:1.0 .
-   docker push monpseudo/crapette:1.0
-   ```
+1. L'image est construite et publiée automatiquement par GitHub Actions (`.github/workflows/docker.yml`)
+   sur `ghcr.io/plinv/crapettegamev2` :
+   - chaque push sur `main` publie `:latest` ;
+   - un tag de version publie `:1.0.0` :
+     ```bash
+     git tag v1.0.0 && git push origin v1.0.0
+     ```
 2. Sur le serveur, il suffit de `docker-compose.prod.yml` et d'un `.env` rempli à partir de `.env.example`
    (domaine, image, secrets, réglages Traefik). Puis :
    ```bash
