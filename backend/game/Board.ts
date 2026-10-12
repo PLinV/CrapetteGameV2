@@ -19,7 +19,7 @@ export type ClientCard = {
 
 export class Board {
   public activePlayer: PlayerNumber;
-  // Après une pioche, il faut jouer une carte avant de pouvoir repiocher.
+  // Après une pioche, il faut jouer la carte de sa défausse avant de pouvoir repiocher.
   private canDraw = true;
   private piles = new Map<string, Pack>(ZONES_PLATEAU.map((zoneId) => [zoneId, new Pack()]));
 
@@ -115,7 +115,8 @@ export class Board {
     this.pile(to).add(this.pile(from).take()!);
     const newTop = this.pile(from).top();
     if (newTop) newTop.isFaceDown = false; // retourne la carte suivante de la crapette
-    this.canDraw = true;
+    // On ne peut repiocher qu'après avoir joué la carte piochée, posée sur la défausse.
+    if (from === playerZones(this.activePlayer).defausse) this.canDraw = true;
     return true;
   }
 
