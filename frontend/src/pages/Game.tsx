@@ -6,6 +6,7 @@ import { useFitScale } from '../hooks/useFitScale';
 import Board from '../components/Board';
 import WaitingPopup from '../components/WaitingPopup';
 import GameOverPopup from '../components/GameOverPopup';
+import AdminPanel from '../components/AdminPanel';
 
 const MESSAGE_STYLES = {
   error: 'bg-red-600/90 border-red-400 shadow-[0_10px_40px_rgba(220,38,38,0.5)] text-white',
@@ -15,7 +16,10 @@ const MESSAGE_STYLES = {
 export default function Game() {
   const roomId = useParams<{ roomId: string }>().roomId!;
   const navigate = useNavigate();
-  const { state, message, isMyTurn, isPlayer1, myId, draw, move, passTurn, callCrapette, playAgain, leave } = useGame(roomId);
+  const {
+    state, message, isMyTurn, isPlayer1, myId, isAdmin,
+    draw, move, passTurn, callCrapette, playAgain, adminAction, leave,
+  } = useGame(roomId);
   const isOver = !!state?.winner;
 
   // Le plateau a une taille fixe : on le met à l'échelle pour qu'il tienne dans la fenêtre.
@@ -30,6 +34,8 @@ export default function Game() {
   return (
     <div className="relative flex items-center justify-center w-full h-dvh bg-neutral-900 overflow-hidden select-none">
       {!state && <WaitingPopup roomId={roomId} />}
+
+      {state && isAdmin && <AdminPanel onAction={adminAction} />}
 
       {state?.winner && (
         <GameOverPopup

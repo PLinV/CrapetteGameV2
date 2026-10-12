@@ -170,6 +170,29 @@ export class Board {
     return true;
   }
 
+  // ----- Outils admin, pour tester la partie -----
+
+  // Ne laisse au joueur qu'une carte, sur sa crapette, prête à monter aux fondations :
+  // il gagne en un coup. Ses autres cartes sont retirées du jeu.
+  public adminNearlyWin(player: PlayerNumber) {
+    this.adminGiveTurn(player);
+    this.winner = null;
+    const { crapette, talon, defausse } = playerZones(player);
+    const cartes = [crapette, talon, defausse].flatMap((zoneId) => this.pile(zoneId).cartes.splice(0));
+    const last = cartes.find((card) => ZONES.fondations.some((to) => this.canPlace(card, crapette, to))) ?? cartes[0];
+    if (last) this.pile(crapette).add(last);
+  }
+
+  public adminGiveTurn(player: PlayerNumber) {
+    this.activePlayer = player;
+    this.canDraw = true;
+    this.lastActionWasFoul = false;
+  }
+
+  public adminForceWin(player: PlayerNumber) {
+    this.winner = player;
+  }
+
   public selectableZones(): string[] {
     return ZONES_PLATEAU.filter((zoneId) => this.canTakeFrom(zoneId));
   }

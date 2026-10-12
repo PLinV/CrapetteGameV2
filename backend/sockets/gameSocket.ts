@@ -1,10 +1,28 @@
 import { Server, Socket } from 'socket.io';
 import { GameRoom } from '../game/GameRoom';
+import { PlayerNumber } from '../../constant/plateau';
+import { verifyAccessToken } from '../services/token';
+import { getUserById } from '../repositories/user_repositories';
 
 const rooms = new Map<string, GameRoom>();
 
+type AdminAction = 'nearly_win' | 'give_turn' | 'force_win' | 'new_game';
+
+// Lit un cookie dans l'en-tête de la connexion socket.
+const readCookie = (header: string | undefined, name: string) =>
+  header?.split('; ').find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
+
 export function setupGameSockets(io: Server) {
   const sendState = (roomId: string, room: GameRoom) => io.to(roomId).emit('game_state', room.state());
+
+  // À la connexion, on regarde si le joueur est connecté à un compte admin (cookie d'auth).
+  io.use(async (socket, next) => {
+    const token = readCookie(socket.handshake.headers.cookie, 'access_token');
+    const tokenUser = token ? verifyAccessToken(decodeURIComponent(token)) : null;
+    const user = tokenUser ? await getUserById(tokenUser.id).catch(() => null) : null;
+    socket.data.isAdmin = !!user?.isAdmin;
+    next();
+  });
 
   io.on('connection', (socket: Socket) => {
     // Le plateau de la partie du socket, uniquement si c'est à lui de jouer et que la partie n'est pas finie.
@@ -25,7 +43,8 @@ export function setupGameSockets(io: Server) {
         return;
       }
       socket.join(roomId);
-      socket.data = { roomId, userId };
+      socket.data.roomId = roomId;
+      socket.data.userId = userId;
 
       if (room.board) sendState(roomId, room);
       else socket.emit('waiting_for_opponent');
@@ -38,7 +57,7 @@ export function setupGameSockets(io: Server) {
 
       room.leave(userId);
       socket.leave(roomId);
-      socket.data = {};
+      socket.data.roomId = socket.data.userId = undefined;
       if (room.isEmpty()) rooms.delete(roomId);
       else io.to(roomId).emit('waiting_for_opponent');
     });
@@ -75,6 +94,21 @@ export function setupGameSockets(io: Server) {
     socket.on('play_again', () => {
       const room = rooms.get(socket.data.roomId);
       if (room?.voteRematch(socket.data.userId)) sendState(socket.data.roomId, room);
+    });
+
+    // Outils de test réservés aux comptes admin. `target` : 'me' ou 'opponent'.
+    socket.on('admin_action', ({ action, target }: { action: AdminAction; target: 'me' | 'opponent' }) => {
+      const room = rooms.get(socket.data.roomId);
+      const board = room?.board;
+      const me = room?.playerNumber(socket.data.userId);
+      if (!socket.data.isAdmin || !room || !board || !me) return;
+
+      const player = (target === 'me' ? me : 3 - me) as PlayerNumber;
+      if (action === 'nearly_win') board.adminNearlyWin(player);
+      else if (action === 'give_turn') board.adminGiveTurn(player);
+      else if (action === 'force_win') board.adminForceWin(player);
+      else if (action === 'new_game') room.newGame();
+      sendState(socket.data.roomId, room);
     });
 
     socket.on('pass_turn', () => {

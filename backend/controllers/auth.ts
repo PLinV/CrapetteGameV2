@@ -60,7 +60,7 @@ export const me = async (req: AuthRequest, res: Response) => {
     res.status(404).json({ message: 'Utilisateur introuvable.' });
     return;
   }
-  res.json({ username: user.username });
+  res.json({ username: user.username, isAdmin: user.isAdmin });
 };
 
 // Échange un refresh token valide contre une nouvelle paire de tokens (rotation).

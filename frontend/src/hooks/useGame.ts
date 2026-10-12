@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../services/socket';
+import { fetchWithAuth } from '../services/api';
 
 export type CarteData = {
   id: string;
@@ -11,6 +12,8 @@ export type CarteData = {
   val?: number; // absents si la carte est face cachée
   symbole?: string;
 };
+
+export type AdminAction = 'nearly_win' | 'give_turn' | 'force_win' | 'new_game';
 
 type Message = { text: string; kind: 'error' | 'crapette' };
 
@@ -38,6 +41,7 @@ export function useGame(roomId: string) {
   const [myId] = useState(getUserId);
   const [state, setState] = useState<GameState | null>(null); // null = en attente d'un adversaire
   const [message, setMessage] = useState<Message | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const join = () => socket.emit('join_room', { roomId, userId: myId });
@@ -53,15 +57,26 @@ export function useGame(roomId: string) {
       navigate('/matchmaking');
     };
 
-    socket.on('connect', join); // on se ré-assoit à la table après une coupure réseau
+    socket.on('connect', join); // à chaque connexion, y compris après une coupure réseau
     socket.on('game_state', setState);
     socket.on('waiting_for_opponent', onWaiting);
     socket.on('action_error', onActionError);
     socket.on('crapette_called', onCrapette);
     socket.on('room_error', onRoomError);
-    join();
+
+    // /me rafraîchit les cookies d'auth avant la connexion : le serveur saura si on est admin.
+    let cancelled = false;
+    fetchWithAuth('/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((me) => setIsAdmin(!!me?.isAdmin))
+      .catch(() => setIsAdmin(false))
+      .finally(() => {
+        if (!cancelled) socket.connect();
+      });
 
     return () => {
+      cancelled = true;
+      socket.disconnect();
       socket.off('connect', join);
       socket.off('game_state', setState);
       socket.off('waiting_for_opponent', onWaiting);
@@ -88,6 +103,8 @@ export function useGame(roomId: string) {
     passTurn: () => socket.emit('pass_turn'),
     callCrapette: () => socket.emit('call_crapette'),
     playAgain: () => socket.emit('play_again'),
+    isAdmin,
+    adminAction: (action: AdminAction, target: 'me' | 'opponent' = 'me') => socket.emit('admin_action', { action, target }),
     leave: () => socket.emit('leave_room'),
   };
 }

@@ -2,16 +2,19 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User } from '../repositories/user_repositories';
 
+// Le rôle admin n'est pas mis dans le token : il est relu en base à chaque vérification.
+type TokenUser = Pick<User, 'id' | 'username'>;
+
 const ACCESS_SECRET = process.env.ACCESS_TOKEN_SECRET || 'secret_access_temporaire';
 const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET || 'secret_refresh_temporaire';
 
-export function createAccessToken(user: User): string {
+export function createAccessToken(user: TokenUser): string {
   return jwt.sign({ id: user.id, username: user.username }, ACCESS_SECRET, { algorithm: 'HS256', expiresIn: '15m' });
 }
 
-export function verifyAccessToken(token: string): User | null {
+export function verifyAccessToken(token: string): TokenUser | null {
   try {
-    return jwt.verify(token, ACCESS_SECRET) as User;
+    return jwt.verify(token, ACCESS_SECRET) as TokenUser;
   } catch {
     return null;
   }

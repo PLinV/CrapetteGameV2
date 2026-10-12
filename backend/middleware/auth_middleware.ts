@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../services/token';
-import { User } from '../repositories/user_repositories';
 
 export interface AuthRequest extends Request {
-  user?: User;
+  user?: { id: number; username: string };
 }
 
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {

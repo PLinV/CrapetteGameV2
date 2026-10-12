@@ -19,7 +19,7 @@ export class GameRoom {
     if (seat === -1) return null;
 
     this.players[seat] = userId;
-    if (this.players.every(Boolean)) this.board = new Board();
+    if (this.players.every(Boolean)) this.newGame();
     return (seat + 1) as PlayerNumber;
   }
 
@@ -34,11 +34,13 @@ export class GameRoom {
   public voteRematch(userId: string): boolean {
     if (!this.board?.winner || !this.playerNumber(userId)) return false;
     this.rematchVotes.add(userId);
-    if (this.rematchVotes.size === 2) {
-      this.board = new Board();
-      this.rematchVotes.clear();
-    }
+    if (this.rematchVotes.size === 2) this.newGame();
     return true;
+  }
+
+  public newGame() {
+    this.board = new Board();
+    this.rematchVotes.clear();
   }
 
   public isEmpty(): boolean {
