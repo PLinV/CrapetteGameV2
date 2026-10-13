@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Card from './Card';
 import CardStack from './CardStack';
@@ -17,6 +18,15 @@ type BoardProps = {
   onCrapette: () => void;
 };
 
+// Ressort sans rebond (amortissement critique : damping = 2 * √stiffness), utilisé à la fois pour le retour
+// de la carte lâchée et pour son déplacement vers sa nouvelle place : les deux mouvements s'additionnent
+// en une trajectoire droite, du point de lâcher jusqu'à la destination.
+const STIFFNESS = 400;
+const DAMPING = 40;
+const CARD_TRANSITION = { type: 'spring', stiffness: STIFFNESS, damping: DAMPING } as const;
+// Durée pendant laquelle la carte lâchée reste au premier plan, le temps d'arriver à sa place.
+const LANDING_MS = 400;
+
 // Zone (emplacement vide ou carte) sous le pointeur, en ignorant la carte qu'on déplace.
 const findZoneAt = (event: MouseEvent | TouchEvent | PointerEvent, draggedId: string) => {
   const point = 'changedTouches' in event ? event.changedTouches[0] : event;
@@ -33,6 +43,17 @@ export default function Board({
   const myTalon = isPlayer1 ? ZONES.joueur1.talon : ZONES.joueur2.talon;
   // Chaque joueur voit ses propres cartes en bas de l'écran.
   const flipped = isPlayer1;
+
+  // Carte en main ou en train d'atterrir : elle passe au-dessus de toutes les autres.
+  const [liftedId, setLiftedId] = useState<string | null>(null);
+  const landingTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const lift = (id: string) => {
+    clearTimeout(landingTimer.current);
+    setLiftedId(id);
+  };
+  const land = () => {
+    landingTimer.current = setTimeout(() => setLiftedId(null), LANDING_MS);
+  };
 
   const topOrder: Record<string, number> = {};
   for (const carte of cartes) topOrder[carte.zoneId] = Math.max(topOrder[carte.zoneId] ?? -1, carte.zOrder);
@@ -65,6 +86,7 @@ export default function Board({
           const placement = getGridPlacement(carte.zoneId, flipped);
 
           const onDragEnd = (event: MouseEvent | TouchEvent | PointerEvent) => {
+            land();
             const to = findZoneAt(event, carte.id);
             // Sinon la carte revient toute seule à sa place.
             if (to && to !== carte.zoneId) onMove(carte.zoneId, to);
@@ -75,7 +97,7 @@ export default function Board({
               key={carte.id}
               style={{
                 ...placement,
-                zIndex: carte.zOrder,
+                zIndex: carte.id === liftedId ? 1000 : carte.zOrder,
                 transform: `translateY(${carte.zOrder * stackOffset(placement.gridRow)}px)`,
               }}
             >
@@ -87,9 +109,11 @@ export default function Board({
                 dragMomentum={false}
                 dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
                 dragElastic={1}
+                dragTransition={{ bounceStiffness: STIFFNESS, bounceDamping: DAMPING }}
                 animate={{ x: 0, y: 0, rotate: horizontal ? 90 : 0, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-                whileDrag={{ scale: 1.05, rotate: 0, zIndex: 9999 }}
+                transition={CARD_TRANSITION}
+                whileDrag={{ scale: 1.05, rotate: 0 }}
+                onDragStart={() => lift(carte.id)}
                 onDragEnd={onDragEnd}
                 onPointerDown={(e) => {
                   if (canDraw && e.button === 0) onDraw();
