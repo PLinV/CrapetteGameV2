@@ -8,6 +8,7 @@ import History from './pages/History';
 import Leaderboard from './pages/Leaderboard';
 import Settings from './pages/Settings';
 import RequireAuth from './components/RequireAuth';
+import ForAnna from './pages/ForAnna';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/login" element={<Auth mode="login" />} />
         <Route path="/register" element={<Auth mode="register" />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/pour-toi" element={<ForAnna />} />
         {/* Pages réservées aux joueurs connectés */}
         <Route element={<RequireAuth />}>
           <Route path="/matchmaking" element={<Matchmaking />} />
