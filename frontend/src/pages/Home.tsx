@@ -13,7 +13,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   // Partie quittée en cours de route, à reprendre avant la défaite par forfait
   // (ou avant son annulation, si l'adversaire est parti aussi).
-  const [pausedGame, setPausedGame] = useState<{ roomId: string; deadline: number; ending: 'forfeit' | 'cancel' } | null>(null);
+  const [pausedGame, setPausedGame] = useState<{ roomId: string; name: string; deadline: number; ending: 'forfeit' | 'cancel' } | null>(null);
 
   useEffect(() => {
     fetchWithAuth('/me')
@@ -25,7 +25,7 @@ export default function Home() {
         return data ? fetchWithAuth('/me/paused-game').then((res) => (res.ok ? res.json() : null)) : null;
       })
       .then((paused) => {
-        if (paused) setPausedGame({ roomId: paused.roomId, deadline: Date.now() + paused.endsInMs, ending: paused.ending });
+        if (paused) setPausedGame({ roomId: paused.roomId, name: paused.name, deadline: Date.now() + paused.endsInMs, ending: paused.ending });
       })
       .catch((err) => console.error('Serveur injoignable :', err))
       .finally(() => setIsLoading(false));
@@ -71,7 +71,7 @@ export default function Home() {
               >
                 <span className="block text-lg font-black uppercase tracking-wider text-red-300">Reprendre la partie</span>
                 <span className="block text-xs text-red-200/80 mt-1">
-                  Table « {pausedGame.roomId} » · {pausedGame.ending === 'forfeit' ? 'forfait' : 'partie annulée'} dans{' '}
+                  « {pausedGame.name} » · {pausedGame.ending === 'forfeit' ? 'forfait' : 'partie annulée'} dans{' '}
                   <Countdown deadline={pausedGame.deadline} />
                 </span>
               </Link>

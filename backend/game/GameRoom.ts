@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Board } from './Board';
 import { PlayerNumber } from '../../constant/plateau';
 
@@ -16,6 +17,17 @@ export type GameResult = {
 // Compte du joueur assis à une place.
 export type Account = { id: number; username: string; avatarUrl: string | null };
 
+export type RoomOptions = {
+  forfeitDelayMs: number;
+  name?: string; // nom affiché dans la liste des parties
+  ownerId?: number; // créateur : il entre sans mot de passe
+  password?: string; // vide ou absent = partie publique
+};
+
+// Le mot de passe d'une table ne vit qu'en mémoire, le temps de la partie : on n'en garde qu'une empreinte salée.
+const hashRoomPassword = (salt: string, password: string) =>
+  crypto.createHash('sha256').update(salt + password).digest();
+
 export class GameRoom {
   // Compte assis à chaque place (null si elle est libre) :
   // index 0 = joueur 1 (cartes rouges), index 1 = joueur 2 (cartes bleues).
@@ -27,7 +39,7 @@ export class GameRoom {
   private forfeitAt: [number | null, number | null] = [null, null];
   // Heure (ms) à laquelle la table est détruite, quand plus personne n'y est connecté.
   // Une partie en cours est alors annulée : match nul, rien n'est enregistré.
-  public closesAt: number | null = null;
+  public closesAt: number | null;
   // Vrai une fois le résultat de la partie en cours enregistré.
   private resultTaken = false;
   // La partie n'existe que lorsque les deux joueurs sont à table.
@@ -35,7 +47,44 @@ export class GameRoom {
   // Comptes qui veulent rejouer après la fin de la partie.
   private rematchVotes = new Set<number>();
 
-  constructor(private readonly forfeitDelayMs: number) {}
+  public readonly name: string;
+  private readonly ownerId: number | null;
+  private readonly forfeitDelayMs: number;
+  private readonly passwordSalt = crypto.randomBytes(16).toString('hex');
+  private readonly passwordHash: Buffer | null;
+  public readonly createdAt = Date.now();
+
+  constructor({ forfeitDelayMs, name = '', ownerId, password }: RoomOptions, now = Date.now()) {
+    this.forfeitDelayMs = forfeitDelayMs;
+    this.name = name;
+    this.ownerId = ownerId ?? null;
+    this.passwordHash = password ? hashRoomPassword(this.passwordSalt, password) : null;
+    // Une table créée mais jamais rejointe est détruite comme une table vide.
+    this.closesAt = now + forfeitDelayMs;
+  }
+
+  public get isLocked(): boolean {
+    return this.passwordHash !== null;
+  }
+
+  // Le créateur et les joueurs déjà assis entrent librement ; les autres doivent donner le mot de passe.
+  public canEnter(userId: number, password: unknown): boolean {
+    if (!this.passwordHash || userId === this.ownerId || this.seatIndex(userId) !== -1) return true;
+    if (typeof password !== 'string') return false;
+    return crypto.timingSafeEqual(hashRoomPassword(this.passwordSalt, password), this.passwordHash);
+  }
+
+  // Table affichée dans la liste des parties : un seul joueur, connecté, qui attend un adversaire.
+  public lobbyEntry() {
+    const seated = this.accounts.findIndex(Boolean);
+    const host = seated === -1 ? null : this.accounts[seated];
+    if (this.board || !host || this.accounts.filter(Boolean).length !== 1 || this.connections[seated] === 0) return null;
+    return { name: this.name, host: { username: host.username, avatarUrl: host.avatarUrl }, locked: this.isLocked };
+  }
+
+  public isOwnedBy(userId: number): boolean {
+    return this.ownerId === userId;
+  }
 
   // Renvoie le numéro du joueur, ou null si la table est pleine.
   // Un joueur déjà assis (rechargement, coupure, retour du menu, autre appareil) reprend la partie en cours.

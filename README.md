@@ -1,6 +1,7 @@
 # Crapette
 
-Jeu de cartes de la Crapette en ligne, en 1 contre 1 dans des tables privées.
+Jeu de cartes de la Crapette en ligne, en 1 contre 1 : on crée une partie (publique ou protégée par un mot de passe)
+ou on rejoint une partie en attente depuis le menu « Jouer ».
 
 - `frontend/` : React + Vite + Tailwind + framer-motion
 - `backend/` : Express + Socket.IO + PostgreSQL. Le serveur fait autorité sur toutes les règles.

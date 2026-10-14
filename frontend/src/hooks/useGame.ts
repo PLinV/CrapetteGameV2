@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../services/socket';
-import { fetchWithAuth } from '../services/api';
 import { useCurrentUser } from './useCurrentUser';
+import { useSocketConnection } from './useSocketConnection';
 
 export type CarteData = {
   id: string;
@@ -53,17 +53,21 @@ export function useGame(roomId: string) {
   const [state, setState] = useState<GameState | null>(null); // null = en attente d'un adversaire
   const [message, setMessage] = useState<Message | null>(null);
   const { isAdmin } = useCurrentUser();
+  // Nom de la table, connu une fois assis.
+  const [room, setRoom] = useState<{ name: string; locked: boolean } | null>(null);
+  // Table protégée : le serveur demande le mot de passe (wrong = celui donné était faux).
+  const [passwordPrompt, setPasswordPrompt] = useState<{ name: string; wrong: boolean } | null>(null);
+  const passwordRef = useRef<string | undefined>(undefined);
+
+  const join = () => socket.emit('join_room', { roomId, password: passwordRef.current });
+  useSocketConnection(join, `/game/${roomId}`);
 
   useEffect(() => {
-    let cancelled = false;
-    let refreshed = false;
-    const join = () => {
-      refreshed = false;
-      socket.emit('join_room', { roomId });
-    };
-    const onSeat = (seat: Seat) => {
+    const onSeat = ({ seat, name, locked }: { seat: Seat; name: string; locked: boolean }) => {
       mySeatRef.current = seat;
       setMySeat(seat);
+      setRoom({ name, locked });
+      setPasswordPrompt(null);
     };
     const onState = (serverState: Parameters<typeof withDeadlines>[0]) => setState(withDeadlines(serverState));
     const onWaiting = () => setState(null);
@@ -73,48 +77,20 @@ export function useGame(roomId: string) {
         text: callerSeat === mySeatRef.current ? 'Crapette ! À vous de jouer' : 'Crapette ! Votre adversaire reprend la main',
         kind: 'crapette',
       });
-    const onRoomError = (msg: string) => {
-      alert(msg);
-      navigate('/matchmaking');
-    };
+    // Partie introuvable, pleine... : retour au menu « Jouer », qui affiche le message.
+    const onRoomError = (error: string) => navigate('/matchmaking', { replace: true, state: { error } });
 
-    const toLogin = () => navigate('/login', { replace: true, state: { from: `/game/${roomId}` } });
-    // Le serveur refuse les sockets sans compte connecté. L'access token (15 min) a pu expirer
-    // avant une reconnexion : on le rafraîchit une fois, puis on renvoie vers la connexion.
-    const onConnectError = (err: Error) => {
-      if (err.message !== 'unauthorized') return; // simple coupure réseau : socket.io réessaie tout seul
-      if (refreshed) {
-        toLogin();
-        return;
-      }
-      refreshed = true;
-      fetchWithAuth('/me')
-        .then((res) => {
-          if (cancelled) return;
-          if (res.ok) socket.connect();
-          else toLogin();
-        })
-        .catch(toLogin);
-    };
-
-    socket.on('connect', join); // à chaque connexion, y compris après une coupure réseau
-    socket.on('connect_error', onConnectError);
     socket.on('seat', onSeat);
+    socket.on('password_required', setPasswordPrompt);
     socket.on('game_state', onState);
     socket.on('waiting_for_opponent', onWaiting);
     socket.on('action_error', onActionError);
     socket.on('crapette_called', onCrapette);
     socket.on('room_error', onRoomError);
 
-    // RequireAuth vient d'appeler /me : les cookies d'auth sont à jour.
-    socket.connect();
-
     return () => {
-      cancelled = true;
-      socket.disconnect();
-      socket.off('connect', join);
-      socket.off('connect_error', onConnectError);
       socket.off('seat', onSeat);
+      socket.off('password_required', setPasswordPrompt);
       socket.off('game_state', onState);
       socket.off('waiting_for_opponent', onWaiting);
       socket.off('action_error', onActionError);
@@ -130,6 +106,12 @@ export function useGame(roomId: string) {
   }, [message]);
 
   return {
+    room,
+    passwordPrompt,
+    submitPassword: (password: string) => {
+      passwordRef.current = password;
+      join();
+    },
     state,
     message,
     mySeat,

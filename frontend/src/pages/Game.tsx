@@ -7,6 +7,7 @@ import Board from '../components/Board';
 import WaitingPopup from '../components/WaitingPopup';
 import GameOverPopup from '../components/GameOverPopup';
 import AdminPanel from '../components/AdminPanel';
+import PasswordPrompt from '../components/PasswordPrompt';
 
 const MESSAGE_STYLES = {
   error: 'bg-red-600/90 border-red-400 shadow-[0_10px_40px_rgba(220,38,38,0.5)] text-white',
@@ -17,7 +18,7 @@ export default function Game() {
   const roomId = useParams<{ roomId: string }>().roomId!;
   const navigate = useNavigate();
   const {
-    state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
+    room, passwordPrompt, submitPassword, state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
     draw, move, passTurn, callCrapette, playAgain, adminAction, leave,
   } = useGame(roomId);
   const isOver = !!state?.winner;
@@ -33,7 +34,11 @@ export default function Game() {
 
   return (
     <div className="relative flex items-center justify-center w-full h-dvh bg-neutral-900 overflow-hidden select-none">
-      {!state && <WaitingPopup roomId={roomId} />}
+      {passwordPrompt && (
+        <PasswordPrompt {...passwordPrompt} onSubmit={submitPassword} onCancel={() => navigate('/matchmaking')} />
+      )}
+
+      {!state && room && <WaitingPopup name={room.name} locked={room.locked} />}
 
       {state && isAdmin && <AdminPanel onAction={adminAction} />}
 

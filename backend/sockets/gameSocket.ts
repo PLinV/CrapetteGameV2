@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Server, Socket } from 'socket.io';
 import { GameRoom } from '../game/GameRoom';
 import { PlayerNumber } from '../../constant/plateau';
@@ -9,6 +10,13 @@ import { config } from '../config';
 const MAX_ROOMS = 500;
 const MAX_ROOM_ID_LENGTH = 64;
 const MAX_EVENTS_PER_SECOND = 20;
+// Nom de partie : 1 à 30 caractères, sans caractères de contrôle. Mot de passe : 50 caractères au plus.
+const ROOM_NAME_REGEX = /^[^\p{Cc}]{1,30}$/u;
+const MAX_ROOM_PASSWORD_LENGTH = 50;
+// Mauvais mots de passe tolérés par compte et par fenêtre de temps (contre les essais en série).
+const MAX_PASSWORD_ATTEMPTS = 10;
+const PASSWORD_ATTEMPTS_WINDOW_MS = 10 * 60 * 1000;
+const LOBBY = 'lobby'; // canal des sockets qui regardent la liste des parties
 
 const ADMIN_ACTIONS = ['nearly_win', 'give_turn', 'force_win', 'new_game'] as const;
 type AdminAction = (typeof ADMIN_ACTIONS)[number];
@@ -19,9 +27,31 @@ const rooms = new Map<string, GameRoom>();
 export function findPausedGame(userId: number) {
   for (const [roomId, room] of rooms) {
     const paused = room.pausedGameOf(userId);
-    if (paused) return { roomId, ...paused };
+    if (paused) return { roomId, name: room.name, ...paused };
   }
   return null;
+}
+
+// Parties en attente d'un adversaire, de la plus récente à la plus ancienne.
+function lobbyList() {
+  return [...rooms]
+    .map(([roomId, room]) => ({ roomId, createdAt: room.createdAt, entry: room.lobbyEntry() }))
+    .filter((room) => room.entry)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map(({ roomId, entry }) => ({ roomId, ...entry! }));
+}
+
+const passwordAttempts = new Map<number, { count: number; since: number }>();
+
+// Compte un mauvais mot de passe ; renvoie faux si le compte a fait trop d'essais récemment.
+function allowPasswordAttempt(userId: number): boolean {
+  const now = Date.now();
+  const attempts = passwordAttempts.get(userId);
+  if (!attempts || now - attempts.since > PASSWORD_ATTEMPTS_WINDOW_MS) {
+    passwordAttempts.set(userId, { count: 1, since: now });
+    return true;
+  }
+  return ++attempts.count <= MAX_PASSWORD_ATTEMPTS;
 }
 
 const isRoomId = (value: unknown): value is string =>
@@ -66,7 +96,11 @@ export function setupGameSockets(io: Server) {
       timers.delete(roomId);
     }
     rooms.delete(roomId);
+    broadcastLobby();
   };
+
+  // Liste des parties en attente, envoyée en direct à ceux qui regardent le menu « Jouer ».
+  const broadcastLobby = () => io.to(LOBBY).emit('lobby', lobbyList());
 
   // Le joueur du socket quitte sa table : bouton « Menu principal », onglet fermé ou coupure réseau.
   const leaveRoom = (socket: Socket) => {
@@ -82,6 +116,7 @@ export function setupGameSockets(io: Server) {
       return;
     }
     armTimers(roomId, room);
+    broadcastLobby();
     // Partie en cours : l'adversaire voit le compte à rebours. Sinon, il attend un nouvel adversaire.
     if (room.board) sendState(roomId, room);
     else io.to(roomId).emit('waiting_for_opponent');
@@ -128,17 +163,65 @@ export function setupGameSockets(io: Server) {
       return { room, board };
     };
 
-    // La place est liée au compte : un joueur qui revient (même depuis un autre appareil) reprend la partie.
-    socket.on('join_room', (payload: { roomId?: unknown }) => {
-      const { roomId } = payload ?? {};
-      if (!isRoomId(roomId) || socket.data.roomId) return;
+    // Menu « Jouer » : la liste des parties en attente, puis ses mises à jour en direct.
+    socket.on('watch_lobby', () => {
+      socket.join(LOBBY);
+      socket.emit('lobby', lobbyList());
+    });
 
-      if (!rooms.has(roomId) && rooms.size >= MAX_ROOMS) {
-        socket.emit('room_error', 'Le serveur est plein, réessayez plus tard.');
+    // Crée une partie (nom affiché, mot de passe facultatif) et renvoie son identifiant.
+    // L'identifiant est aléatoire : on ne peut pas deviner l'adresse d'une table.
+    socket.on('create_room', (payload: { name?: unknown; password?: unknown }, ack: unknown) => {
+      if (typeof ack !== 'function') return;
+      const { name, password } = payload ?? {};
+      const trimmedName = typeof name === 'string' ? name.trim() : '';
+      if (!ROOM_NAME_REGEX.test(trimmedName)) {
+        ack({ error: 'Nom de partie : 1 à 30 caractères.' });
         return;
       }
-      const room = rooms.get(roomId) ?? new GameRoom(config.forfeitDelayMs);
+      if (password !== undefined && (typeof password !== 'string' || password.length > MAX_ROOM_PASSWORD_LENGTH)) {
+        ack({ error: `Mot de passe : ${MAX_ROOM_PASSWORD_LENGTH} caractères au plus.` });
+        return;
+      }
+      // Une seule partie en attente par joueur : la précédente, encore sans adversaire, est fermée.
+      for (const [id, other] of rooms) {
+        if (other.isOwnedBy(socket.data.userId) && !other.board) {
+          io.to(id).emit('room_error', 'Vous avez créé une autre partie : celle-ci est fermée.');
+          io.in(id).socketsLeave(id);
+          deleteRoom(id);
+        }
+      }
+      if (rooms.size >= MAX_ROOMS) {
+        ack({ error: 'Le serveur est plein, réessayez plus tard.' });
+        return;
+      }
+
+      const roomId = crypto.randomBytes(9).toString('base64url');
+      const room = new GameRoom({ forfeitDelayMs: config.forfeitDelayMs, name: trimmedName, ownerId: socket.data.userId, password });
       rooms.set(roomId, room);
+      armTimers(roomId, room); // détruite si personne ne la rejoint
+      ack({ roomId });
+    });
+
+    // Rejoindre une partie. La place est liée au compte : un joueur qui revient
+    // (même depuis un autre appareil) reprend la partie, sans redonner le mot de passe.
+    socket.on('join_room', (payload: { roomId?: unknown; password?: unknown }) => {
+      const { roomId, password } = payload ?? {};
+      if (!isRoomId(roomId) || socket.data.roomId) return;
+
+      const room = rooms.get(roomId);
+      if (!room) {
+        socket.emit('room_error', "Cette partie n'existe plus.");
+        return;
+      }
+      if (!room.canEnter(socket.data.userId, password)) {
+        if (password !== undefined && !allowPasswordAttempt(socket.data.userId)) {
+          socket.emit('room_error', 'Trop de mauvais mots de passe, réessayez dans quelques minutes.');
+          return;
+        }
+        socket.emit('password_required', { name: room.name, wrong: password !== undefined });
+        return;
+      }
 
       const seat = room.join({ id: socket.data.userId, username: socket.data.username, avatarUrl: socket.data.avatarUrl });
       if (!seat) {
@@ -147,9 +230,10 @@ export function setupGameSockets(io: Server) {
       }
       socket.join(roomId);
       socket.data.roomId = roomId;
-      socket.emit('seat', seat);
+      socket.emit('seat', { seat, name: room.name, locked: room.isLocked });
 
       armTimers(roomId, room);
+      broadcastLobby();
       if (room.board) sendState(roomId, room); // l'adversaire voit aussi le retour du joueur
       else socket.emit('waiting_for_opponent');
     });
