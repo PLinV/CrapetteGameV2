@@ -2,14 +2,14 @@ import { Suits, primaryButtonClass, secondaryButtonClass } from './PageLayout';
 
 type GameOverPopupProps = {
   won: boolean;
-  ranked: boolean;
+  byForfeit: boolean; // le perdant n'est pas revenu à temps
   iAskedRematch: boolean;
   opponentAskedRematch: boolean;
   onPlayAgain: () => void;
   onLeave: () => void;
 };
 
-export default function GameOverPopup({ won, ranked, iAskedRematch, opponentAskedRematch, onPlayAgain, onLeave }: GameOverPopupProps) {
+export default function GameOverPopup({ won, byForfeit, iAskedRematch, opponentAskedRematch, onPlayAgain, onLeave }: GameOverPopupProps) {
   return (
     <div className="absolute inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center">
       <div className="relative w-full max-w-md mx-4 p-10 rounded-3xl bg-black/60 border border-[#d4af37]/40 shadow-[0_20px_60px_rgba(0,0,0,0.8)] text-center overflow-hidden">
@@ -24,7 +24,9 @@ export default function GameOverPopup({ won, ranked, iAskedRematch, opponentAske
           {won ? 'Victoire' : 'Défaite'}
         </h2>
         <p className="relative mt-3 mb-8 text-sm uppercase tracking-widest text-gray-400">
-          {won ? "Vous n'avez plus aucune carte !" : "Votre adversaire s'est débarrassé de toutes ses cartes."}
+          {byForfeit
+            ? won ? "Votre adversaire n'est pas revenu à temps." : "Vous n'êtes pas revenu à temps : défaite par forfait."
+            : won ? "Vous n'avez plus aucune carte !" : "Votre adversaire s'est débarrassé de toutes ses cartes."}
         </p>
 
         <div className="relative flex flex-col gap-3">
@@ -35,12 +37,6 @@ export default function GameOverPopup({ won, ranked, iAskedRematch, opponentAske
             Menu principal
           </button>
         </div>
-
-        {!ranked && (
-          <p className="relative mt-5 text-xs text-gray-500">
-            Partie non comptée dans l'historique : les deux places sont tenues par le même compte.
-          </p>
-        )}
 
         {opponentAskedRematch && !iAskedRematch && (
           <p className="relative mt-5 text-sm font-bold text-amber-400 animate-pulse">Votre adversaire veut une revanche !</p>

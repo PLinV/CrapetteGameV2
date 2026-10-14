@@ -21,6 +21,8 @@ export class Board {
   public activePlayer: PlayerNumber;
   // Le premier joueur qui n'a plus de carte dans son jeu (crapette, talon, défausse) gagne.
   public winner: PlayerNumber | null = null;
+  // Vrai si la partie a été gagnée parce que l'adversaire n'est pas revenu à temps.
+  public wonByForfeit = false;
   // Après une pioche, il faut jouer la carte de sa défausse avant de pouvoir repiocher.
   private canDraw = true;
   // Vrai si la dernière action du joueur actif est une faute que l'adversaire peut sanctionner.
@@ -175,6 +177,13 @@ export class Board {
     this.crapettes[this.opponent]++;
     this.passTurn();
     return true;
+  }
+
+  // Le joueur est parti trop longtemps : son adversaire gagne.
+  public forfeit(loser: PlayerNumber) {
+    if (this.winner) return;
+    this.winner = loser === 1 ? 2 : 1;
+    this.wonByForfeit = true;
   }
 
   // ----- Outils admin, pour tester la partie -----

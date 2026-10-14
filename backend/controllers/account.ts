@@ -4,6 +4,7 @@ import { checkPassword, getUserById, updatePassword, updateUsername } from '../r
 import { deleteUserRefreshTokens } from '../repositories/refresh_token_repositories';
 import { deleteAvatar, getAvatarByUsername, saveAvatar } from '../repositories/avatar_repositories';
 import { passwordError, startSession, usernameError } from './auth';
+import { findPausedGame } from '../sockets/gameSocket';
 
 // Formats acceptés, reconnus à leurs premiers octets (et non au type annoncé par le navigateur) :
 // impossible de faire passer un autre fichier (HTML, SVG avec script...) pour une image.
@@ -79,4 +80,9 @@ export const getAvatar = async (req: Request, res: Response) => {
   }
   res.set({ 'Content-Type': avatar.mime, 'Cache-Control': 'public, max-age=31536000, immutable' });
   res.send(avatar.data);
+};
+
+// Partie que le joueur a quittée et peut encore reprendre avant de perdre par forfait.
+export const pausedGame = (req: AuthRequest, res: Response) => {
+  res.json(findPausedGame(req.user!.id));
 };

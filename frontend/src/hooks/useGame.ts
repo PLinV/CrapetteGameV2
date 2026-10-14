@@ -25,25 +25,29 @@ type GameState = {
   cartes: CarteData[];
   selectableZones: string[];
   winner: Seat | null; // null tant que la partie continue
+  wonByForfeit: boolean; // le perdant n'est pas revenu à temps
   rematchVotes: Seat[]; // joueurs qui ont demandé la revanche
-  players: ({ username: string; avatarUrl: string | null } | null)[]; // par numéro de joueur
-  ranked: boolean; // la partie compte pour l'historique (deux comptes différents)
+  players: (PlayerInfo | null)[]; // par numéro de joueur
 };
 
-// Jeton secret du joueur, conservé dans l'onglet pour retrouver sa place après un rechargement.
-// Il n'est jamais transmis à l'adversaire.
-function getPlayerToken(): string {
-  let token = sessionStorage.getItem('crapette_token');
-  if (!token) {
-    token = crypto.randomUUID();
-    sessionStorage.setItem('crapette_token', token);
-  }
-  return token;
-}
+// connected : faux si le joueur a quitté la table (sa place et la partie l'attendent).
+// forfeitDeadline : heure (ms) à laquelle il perd par forfait s'il n'est pas revenu, sinon null.
+export type PlayerInfo = { username: string; avatarUrl: string | null; connected: boolean; forfeitDeadline: number | null };
+
+type ServerPlayer = Omit<PlayerInfo, 'forfeitDeadline'> & { forfeitInMs: number | null };
+
+// Le serveur envoie un temps restant : on le convertit en heure locale, pour le compte à rebours.
+const withDeadlines = (state: Omit<GameState, 'players'> & { players: (ServerPlayer | null)[] }): GameState => ({
+  ...state,
+  players: state.players.map((player) => {
+    if (!player) return null;
+    const { forfeitInMs, ...rest } = player;
+    return { ...rest, forfeitDeadline: forfeitInMs === null ? null : Date.now() + forfeitInMs };
+  }),
+});
 
 export function useGame(roomId: string) {
   const navigate = useNavigate();
-  const [token] = useState(getPlayerToken);
   const [mySeat, setMySeat] = useState<Seat | null>(null);
   const mySeatRef = useRef<Seat | null>(null);
   const [state, setState] = useState<GameState | null>(null); // null = en attente d'un adversaire
@@ -55,12 +59,13 @@ export function useGame(roomId: string) {
     let refreshed = false;
     const join = () => {
       refreshed = false;
-      socket.emit('join_room', { roomId, token });
+      socket.emit('join_room', { roomId });
     };
     const onSeat = (seat: Seat) => {
       mySeatRef.current = seat;
       setMySeat(seat);
     };
+    const onState = (serverState: Parameters<typeof withDeadlines>[0]) => setState(withDeadlines(serverState));
     const onWaiting = () => setState(null);
     const onActionError = (text: string) => setMessage({ text, kind: 'error' });
     const onCrapette = (callerSeat: Seat) =>
@@ -95,7 +100,7 @@ export function useGame(roomId: string) {
     socket.on('connect', join); // à chaque connexion, y compris après une coupure réseau
     socket.on('connect_error', onConnectError);
     socket.on('seat', onSeat);
-    socket.on('game_state', setState);
+    socket.on('game_state', onState);
     socket.on('waiting_for_opponent', onWaiting);
     socket.on('action_error', onActionError);
     socket.on('crapette_called', onCrapette);
@@ -110,13 +115,13 @@ export function useGame(roomId: string) {
       socket.off('connect', join);
       socket.off('connect_error', onConnectError);
       socket.off('seat', onSeat);
-      socket.off('game_state', setState);
+      socket.off('game_state', onState);
       socket.off('waiting_for_opponent', onWaiting);
       socket.off('action_error', onActionError);
       socket.off('crapette_called', onCrapette);
       socket.off('room_error', onRoomError);
     };
-  }, [roomId, token, navigate]);
+  }, [roomId, navigate]);
 
   useEffect(() => {
     if (!message) return;

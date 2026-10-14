@@ -4,20 +4,28 @@ import { PlayerNumber } from '../../constant/plateau';
 import { verifyAccessToken } from '../services/token';
 import { avatarUrl, getUserById } from '../repositories/user_repositories';
 import { saveGame } from '../repositories/game_repositories';
+import { config } from '../config';
 
 const MAX_ROOMS = 500;
-const MAX_ID_LENGTH = 64; // nom de table et jeton joueur
+const MAX_ROOM_ID_LENGTH = 64;
 const MAX_EVENTS_PER_SECOND = 20;
-// Une table sans aucun joueur connecté est supprimée après ce délai (laisse le temps d'un F5 ou d'une coupure).
-const EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
 
 const ADMIN_ACTIONS = ['nearly_win', 'give_turn', 'force_win', 'new_game'] as const;
 type AdminAction = (typeof ADMIN_ACTIONS)[number];
 
 const rooms = new Map<string, GameRoom>();
 
-const isId = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_LENGTH;
+// Partie que ce joueur a quittée et peut encore reprendre (bouton « Reprendre » de l'accueil).
+export function findPausedGame(userId: number) {
+  for (const [roomId, room] of rooms) {
+    const paused = room.pausedGameOf(userId);
+    if (paused) return { roomId, ...paused };
+  }
+  return null;
+}
+
+const isRoomId = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= MAX_ROOM_ID_LENGTH;
 
 // Lit un cookie dans l'en-tête de la connexion socket.
 const readCookie = (header: string | undefined, name: string) =>
@@ -31,11 +39,52 @@ export function setupGameSockets(io: Server) {
     io.to(roomId).emit('game_state', room.state());
   };
 
-  // Supprime la table plus tard si plus personne n'y est connecté.
-  const scheduleCleanup = (roomId: string) => {
-    setTimeout(() => {
-      if (!io.sockets.adapter.rooms.get(roomId)?.size) rooms.delete(roomId);
-    }, EMPTY_ROOM_TTL_MS);
+  // Deux minuteurs par table : forfait d'un joueur absent, et destruction de la table quand plus
+  // personne n'y est connecté (une partie en cours est alors annulée, sans rien enregistrer).
+  const forfeitTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const closeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  const setTimer = (timers: typeof forfeitTimers, roomId: string, at: number | null, callback: () => void) => {
+    clearTimeout(timers.get(roomId));
+    timers.delete(roomId);
+    if (at !== null) timers.set(roomId, setTimeout(callback, Math.max(0, at - Date.now()) + 100));
+  };
+
+  // À appeler après chaque arrivée ou départ d'un joueur.
+  const armTimers = (roomId: string, room: GameRoom) => {
+    setTimer(forfeitTimers, roomId, room.nextForfeitAt(), () => {
+      if (rooms.get(roomId) === room && room.applyForfeits()) sendState(roomId, room);
+    });
+    setTimer(closeTimers, roomId, room.closesAt, () => {
+      if (rooms.get(roomId) === room && !room.hasConnections()) deleteRoom(roomId);
+    });
+  };
+
+  const deleteRoom = (roomId: string) => {
+    for (const timers of [forfeitTimers, closeTimers]) {
+      clearTimeout(timers.get(roomId));
+      timers.delete(roomId);
+    }
+    rooms.delete(roomId);
+  };
+
+  // Le joueur du socket quitte sa table : bouton « Menu principal », onglet fermé ou coupure réseau.
+  const leaveRoom = (socket: Socket) => {
+    const { roomId, userId } = socket.data;
+    const room = rooms.get(roomId);
+    socket.data.roomId = undefined;
+    socket.leave(roomId);
+    if (!room) return;
+
+    room.leave(userId);
+    if (room.isEmpty()) {
+      deleteRoom(roomId);
+      return;
+    }
+    armTimers(roomId, room);
+    // Partie en cours : l'adversaire voit le compte à rebours. Sinon, il attend un nouvel adversaire.
+    if (room.board) sendState(roomId, room);
+    else io.to(roomId).emit('waiting_for_opponent');
   };
 
   // Seuls les joueurs connectés à un compte peuvent jouer : le compte (cookie d'auth) sert
@@ -69,7 +118,7 @@ export function setupGameSockets(io: Server) {
     });
 
     const myRoom = () => rooms.get(socket.data.roomId);
-    const mySeat = () => myRoom()?.playerNumber(socket.data.token) ?? null;
+    const mySeat = () => myRoom()?.playerNumber(socket.data.userId) ?? null;
 
     // Le plateau de la partie du socket, uniquement si c'est à lui de jouer et que la partie n'est pas finie.
     const myTurnBoard = () => {
@@ -79,47 +128,34 @@ export function setupGameSockets(io: Server) {
       return { room, board };
     };
 
-    // `token` : jeton secret généré par le navigateur, qui permet de retrouver sa place après un rechargement.
-    socket.on('join_room', (payload: { roomId?: unknown; token?: unknown }) => {
-      const { roomId, token } = payload ?? {};
-      if (!isId(roomId) || !isId(token) || socket.data.roomId) return;
+    // La place est liée au compte : un joueur qui revient (même depuis un autre appareil) reprend la partie.
+    socket.on('join_room', (payload: { roomId?: unknown }) => {
+      const { roomId } = payload ?? {};
+      if (!isRoomId(roomId) || socket.data.roomId) return;
 
       if (!rooms.has(roomId) && rooms.size >= MAX_ROOMS) {
         socket.emit('room_error', 'Le serveur est plein, réessayez plus tard.');
         return;
       }
-      const room = rooms.get(roomId) ?? new GameRoom();
+      const room = rooms.get(roomId) ?? new GameRoom(config.forfeitDelayMs);
       rooms.set(roomId, room);
 
-      const seat = room.join(token, { id: socket.data.userId, username: socket.data.username, avatarUrl: socket.data.avatarUrl });
+      const seat = room.join({ id: socket.data.userId, username: socket.data.username, avatarUrl: socket.data.avatarUrl });
       if (!seat) {
         socket.emit('room_error', 'La table est déjà pleine !');
         return;
       }
       socket.join(roomId);
       socket.data.roomId = roomId;
-      socket.data.token = token;
       socket.emit('seat', seat);
 
-      if (room.board) sendState(roomId, room);
+      armTimers(roomId, room);
+      if (room.board) sendState(roomId, room); // l'adversaire voit aussi le retour du joueur
       else socket.emit('waiting_for_opponent');
     });
 
-    socket.on('leave_room', () => {
-      const { roomId, token } = socket.data;
-      const room = myRoom();
-      if (!room) return;
-
-      room.leave(token);
-      socket.leave(roomId);
-      socket.data.roomId = socket.data.token = undefined;
-      if (room.isEmpty()) rooms.delete(roomId);
-      else io.to(roomId).emit('waiting_for_opponent');
-    });
-
-    socket.on('disconnect', () => {
-      if (socket.data.roomId) scheduleCleanup(socket.data.roomId);
-    });
+    socket.on('leave_room', () => leaveRoom(socket));
+    socket.on('disconnect', () => leaveRoom(socket));
 
     socket.on('draw_card', () => {
       const game = myTurnBoard();
@@ -160,7 +196,7 @@ export function setupGameSockets(io: Server) {
 
     socket.on('play_again', () => {
       const room = myRoom();
-      if (room?.voteRematch(socket.data.token)) sendState(socket.data.roomId, room);
+      if (room?.voteRematch(socket.data.userId)) sendState(socket.data.roomId, room);
     });
 
     // Outils de test réservés aux comptes admin. `target` : 'me' ou 'opponent'.
@@ -177,6 +213,7 @@ export function setupGameSockets(io: Server) {
       else if (action === 'give_turn') board.adminGiveTurn(player);
       else if (action === 'force_win') board.adminForceWin(player);
       else room.newGame();
+      armTimers(socket.data.roomId, room);
       sendState(socket.data.roomId, room);
     });
   });

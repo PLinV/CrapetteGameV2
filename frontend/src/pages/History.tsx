@@ -27,6 +27,7 @@ type Stats = {
     opponentCrapettes: number;
     loserCardsLeft: number;
     turns: number;
+    forfeit: boolean;
     durationSeconds: number;
     endedAt: string;
   }[];
@@ -171,7 +172,9 @@ export default function History() {
                       contre <span className="font-bold">{g.opponent ?? DELETED_ACCOUNT}</span>
                     </span>
                     <span className="text-gray-400">
-                      {g.won ? `il lui restait ${g.loserCardsLeft} cartes` : `il vous restait ${g.loserCardsLeft} cartes`}
+                      {g.forfeit
+                        ? g.won ? 'abandon adverse (forfait)' : 'défaite par forfait'
+                        : g.won ? `il lui restait ${g.loserCardsLeft} cartes` : `il vous restait ${g.loserCardsLeft} cartes`}
                     </span>
                     <span className="text-gray-500">{formatDuration(g.durationSeconds)} · {g.turns} tour{g.turns > 1 ? 's' : ''}</span>
                     <span className="text-gray-600 text-xs w-full md:w-auto">{formatDate(g.endedAt)}</span>

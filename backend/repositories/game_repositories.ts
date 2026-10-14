@@ -3,11 +3,11 @@ import { GameResult } from '../game/GameRoom';
 
 export async function saveGame(result: GameResult) {
   await query(
-    `INSERT INTO games (winner_id, loser_id, winner_crapettes, loser_crapettes, loser_cards_left, turns, started_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO games (winner_id, loser_id, winner_crapettes, loser_crapettes, loser_cards_left, turns, started_at, forfeit)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       result.winnerId, result.loserId, result.winnerCrapettes, result.loserCrapettes,
-      result.loserCardsLeft, result.turns, result.startedAt,
+      result.loserCardsLeft, result.turns, result.startedAt, result.forfeit,
     ],
   );
 }
@@ -21,6 +21,7 @@ export type PlayedGame = {
   opponentCrapettes: number;
   loserCardsLeft: number;
   turns: number;
+  forfeit: boolean; // gagnée parce que le perdant n'est pas revenu à temps
   durationSeconds: number;
   endedAt: Date;
 };
@@ -35,6 +36,7 @@ export async function getUserGames(userId: number): Promise<PlayedGame[]> {
             CASE WHEN g.winner_id = $1 THEN g.loser_crapettes ELSE g.winner_crapettes END AS "opponentCrapettes",
             g.loser_cards_left AS "loserCardsLeft",
             g.turns,
+            g.forfeit,
             EXTRACT(EPOCH FROM g.ended_at - g.started_at)::INTEGER AS "durationSeconds",
             g.ended_at AS "endedAt"
      FROM games g

@@ -28,6 +28,9 @@ export const config = {
     port: Number(process.env.DB_PORT) || 5432,
   },
 
+  // Temps laissé à un joueur parti (bouton, onglet fermé, coupure) pour revenir avant de perdre par forfait.
+  forfeitDelayMs: (Number(process.env.FORFEIT_DELAY_SECONDS) || 6 * 60) * 1000,
+
   // Build du frontend, servi par Express en production (le serveur est lancé depuis backend/).
   frontDist: process.env.FRONT_DIST || path.resolve(process.cwd(), '../frontend/dist'),
 };

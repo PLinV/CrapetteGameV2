@@ -6,7 +6,7 @@ import CrapetteButton from './CrapetteButton';
 import PlayerPlate from './PlayerPlate';
 import { getGridPlacement, isHorizontalZone, stackOffset } from './boardLayout';
 import { ZONES_PLATEAU, ZONES, playerZones } from '../../../constant/plateau';
-import type { CarteData } from '../hooks/useGame';
+import type { CarteData, PlayerInfo } from '../hooks/useGame';
 
 type BoardProps = {
   cartes: CarteData[];
@@ -18,7 +18,7 @@ type BoardProps = {
   canCallCrapette: boolean;
   onCrapette: () => void;
   // Pseudos des joueurs, par numéro de joueur, et joueur dont c'est le tour (null si la partie est finie).
-  players: ({ username: string; avatarUrl: string | null } | null)[];
+  players: (PlayerInfo | null)[];
   activeSeat: 1 | 2 | null;
   onPassTurn: () => void;
 };
@@ -56,6 +56,8 @@ export default function Board({
     <PlayerPlate
       username={players[seat - 1]?.username ?? null}
       avatarUrl={players[seat - 1]?.avatarUrl ?? null}
+      connected={players[seat - 1]?.connected ?? true}
+      forfeitDeadline={players[seat - 1]?.forfeitDeadline ?? null}
       isMe={seat === mySeat}
       dos={seat === 1 ? 'rouge' : 'bleu'}
       cardsLeft={cardsLeft(seat)}

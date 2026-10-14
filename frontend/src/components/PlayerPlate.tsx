@@ -1,9 +1,12 @@
 import type { CSSProperties } from 'react';
 import Avatar from './Avatar';
+import Countdown from './Countdown';
 
 type PlayerPlateProps = {
   username: string | null;
   avatarUrl: string | null;
+  connected: boolean; // faux s'il a quitté la table : la partie attend son retour
+  forfeitDeadline: number | null; // heure à laquelle il perd par forfait s'il n'est pas revenu
   isMe: boolean;
   dos: 'rouge' | 'bleu';
   cardsLeft: number; // crapette + talon + défausse
@@ -18,7 +21,7 @@ const DOS = {
 };
 
 // Plaque d'un joueur sur le plateau : pseudo, couleur de ses cartes et cartes qu'il lui reste.
-export default function PlayerPlate({ username, avatarUrl, isMe, dos, cardsLeft, isActive, onPassTurn, style }: PlayerPlateProps) {
+export default function PlayerPlate({ username, avatarUrl, connected, forfeitDeadline, isMe, dos, cardsLeft, isActive, onPassTurn, style }: PlayerPlateProps) {
   const name = username ?? '…';
 
   return (
@@ -30,7 +33,7 @@ export default function PlayerPlate({ username, avatarUrl, isMe, dos, cardsLeft,
           : 'bg-black/30 border-white/10'
       }`}
     >
-      <Avatar url={avatarUrl} name={name} size={72} gold={isMe} />
+      <Avatar url={avatarUrl} name={name} size={72} gold={isMe} className={connected ? '' : 'grayscale opacity-50'} />
 
       <div className="min-w-0 flex flex-col gap-1">
         <span className={`text-2xl font-black truncate ${isMe ? 'text-amber-300' : 'text-white'}`}>
@@ -41,7 +44,11 @@ export default function PlayerPlate({ username, avatarUrl, isMe, dos, cardsLeft,
           <span className={`w-3 h-3 rounded-full ${DOS[dos].dot}`} />
           {DOS[dos].label} · {cardsLeft} carte{cardsLeft > 1 ? 's' : ''}
         </span>
-        {isActive && onPassTurn ? (
+        {!connected ? (
+          <span className="text-xs font-black uppercase tracking-widest text-red-400">
+            Absent{forfeitDeadline !== null && <> · forfait dans <Countdown deadline={forfeitDeadline} /></>}
+          </span>
+        ) : isActive && onPassTurn ? (
           <button
             onClick={onPassTurn}
             className="self-start mt-1 px-4 py-1.5 rounded-full bg-gradient-to-b from-neutral-700 to-neutral-900 border-2 border-amber-500/70 text-sm font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 hover:border-amber-300 active:scale-95 transition-all cursor-pointer"

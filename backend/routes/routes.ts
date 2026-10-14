@@ -5,7 +5,7 @@ import {
 } from '../controllers/auth';
 import { leaderboard, stats } from '../controllers/stats';
 import {
-  changePassword, changeUsername, getAvatar, removeAvatar, uploadAvatar,
+  changePassword, changeUsername, getAvatar, pausedGame, removeAvatar, uploadAvatar,
 } from '../controllers/account';
 import { requireAdmin, requireAuth } from '../middleware/auth_middleware';
 import { IS_PROD } from '../config';
@@ -44,6 +44,7 @@ router.put('/me/avatar', requireAuth, limit(30, 60),
   express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '300kb' }), uploadAvatar);
 router.delete('/me/avatar', requireAuth, removeAvatar);
 router.get('/avatars/:username', getAvatar);
+router.get('/me/paused-game', requireAuth, pausedGame);
 router.post('/reset-password', limit(10, 15), resetPassword);
 router.post('/admin/password-reset', requireAuth, requireAdmin, createPasswordReset);
 

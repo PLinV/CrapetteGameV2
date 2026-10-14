@@ -60,6 +60,8 @@ export async function initDB() {
     -- pour les bases créées avant l'ajout de ces colonnes
     ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
+    -- partie gagnée parce que l'adversaire n'est pas revenu à temps
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS forfeit BOOLEAN NOT NULL DEFAULT false;
   `);
   console.log('[DB] tables prêtes');
 }
