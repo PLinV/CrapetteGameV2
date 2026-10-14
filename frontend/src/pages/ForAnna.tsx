@@ -85,7 +85,7 @@ export default function ForAnna() {
   const [content, setContent] = useState<Content | null>(null);
 
   useEffect(() => {
-    fetchWithAuth('/pour-toi')
+    fetchWithAuth('/pour-anna')
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then(setContent)
       .catch(() => navigate('/', { replace: true }));

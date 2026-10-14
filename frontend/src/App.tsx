@@ -25,7 +25,7 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/pour-toi" element={<ForAnna />} />
+          <Route path="/pour-anna" element={<ForAnna />} />
         </Route>
       </Routes>
     </BrowserRouter>

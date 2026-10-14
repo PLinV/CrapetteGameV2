@@ -135,7 +135,7 @@ export default function Home() {
             {/* Page personnalisée : bouton visible seulement par les comptes autorisés (le serveur vérifie aussi). */}
             {me.canSeeForAnna && (
               <Link
-                to="/pour-toi"
+                to="/pour-anna"
                 aria-label="Une surprise"
                 className="group flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-rose-600/80 to-pink-500/80 border border-rose-300/50 shadow-[0_0_25px_rgba(244,63,94,0.35)] hover:shadow-[0_0_35px_rgba(244,63,94,0.6)] hover:-translate-y-0.5 transition-all"
               >

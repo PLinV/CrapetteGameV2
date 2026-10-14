@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth_middleware';
 import { User, getUserById } from '../repositories/user_repositories';
 
-// Page personnalisée (/pour-toi), réservée à ces comptes et aux admins.
+// Page personnalisée (/pour-anna), réservée à ces comptes et aux admins.
 // Le contenu n'est envoyé qu'à eux : il n'est pas écrit dans le code du site, téléchargé par tous.
 const ALLOWED_USERNAMES = ['Anna', 'Paulin'];
 

@@ -36,7 +36,7 @@ router.post('/logout', logout);
 router.get('/me', requireAuth, me);
 router.get('/stats', requireAuth, stats);
 router.get('/leaderboard', requireAuth, leaderboard);
-router.get('/pour-toi', requireAuth, forAnna);
+router.get('/pour-anna', requireAuth, forAnna);
 
 // Paramètres du compte
 router.patch('/me/username', requireAuth, limit(10, 60), changeUsername);
