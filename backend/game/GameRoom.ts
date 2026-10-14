@@ -12,12 +12,15 @@ export type GameResult = {
   startedAt: Date;
 };
 
+// Compte du joueur assis à une place.
+export type Account = { id: number; username: string };
+
 export class GameRoom {
   // Jeton secret de chaque joueur (jamais envoyé à l'adversaire) :
   // index 0 = joueur 1 (cartes rouges), index 1 = joueur 2 (cartes bleues).
   public players: [string | null, string | null] = [null, null];
-  // Compte de chaque joueur (null si la place est libre), pour l'historique.
-  private userIds: [number | null, number | null] = [null, null];
+  // Compte de chaque joueur (null si la place est libre) : pseudo affiché en partie et historique.
+  private accounts: [Account | null, Account | null] = [null, null];
   // Vrai une fois le résultat de la partie en cours enregistré.
   private resultTaken = false;
   // La partie n'existe que lorsque les deux joueurs sont à table.
@@ -27,7 +30,7 @@ export class GameRoom {
 
   // Renvoie le numéro du joueur, ou null si la table est pleine.
   // Un joueur déjà assis (rechargement de page) retrouve sa place.
-  public join(token: string, userId: number): PlayerNumber | null {
+  public join(token: string, account: Account): PlayerNumber | null {
     const existing = this.playerNumber(token);
     if (existing) return existing;
 
@@ -35,7 +38,7 @@ export class GameRoom {
     if (seat === -1) return null;
 
     this.players[seat] = token;
-    this.userIds[seat] = userId;
+    this.accounts[seat] = account;
     if (this.players.every(Boolean)) this.newGame();
     return (seat + 1) as PlayerNumber;
   }
@@ -45,7 +48,7 @@ export class GameRoom {
     const seat = this.players.indexOf(token);
     if (seat === -1) return;
     this.players[seat] = null;
-    this.userIds[seat] = null;
+    this.accounts[seat] = null;
     this.board = null;
     this.rematchVotes.clear();
   }
@@ -67,7 +70,7 @@ export class GameRoom {
   // La partie compte pour l'historique si les deux joueurs sont deux comptes différents
   // (les victoires obtenues avec les outils admin comptent aussi, pour pouvoir tester l'historique).
   private isRanked(): boolean {
-    const [id1, id2] = this.userIds;
+    const [id1, id2] = this.accounts.map((account) => account?.id);
     return !!id1 && !!id2 && id1 !== id2;
   }
 
@@ -80,8 +83,8 @@ export class GameRoom {
     const winner = board.winner;
     const loser: PlayerNumber = winner === 1 ? 2 : 1;
     return {
-      winnerId: this.userIds[winner - 1]!,
-      loserId: this.userIds[loser - 1]!,
+      winnerId: this.accounts[winner - 1]!.id,
+      loserId: this.accounts[loser - 1]!.id,
       winnerCrapettes: board.crapettes[winner],
       loserCrapettes: board.crapettes[loser],
       loserCardsLeft: board.cardsLeft(loser),
@@ -107,6 +110,7 @@ export class GameRoom {
       selectableZones: this.board?.selectableZones() ?? [],
       winner: this.board?.winner ?? null,
       rematchVotes: [...this.rematchVotes].map((token) => this.playerNumber(token)),
+      players: this.accounts.map((account) => (account ? { username: account.username } : null)), // par numéro de joueur
       ranked: this.isRanked(), // la partie sera-t-elle comptée dans l'historique ?
     };
   }

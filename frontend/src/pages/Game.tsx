@@ -77,16 +77,6 @@ export default function Game() {
         </div>
       )}
 
-      {state && isMyTurn && !isOver && (
-        <button
-          onClick={passTurn}
-          className="absolute bottom-8 left-8 z-50 group flex items-center gap-4 bg-gradient-to-b from-neutral-800 to-neutral-950 hover:from-neutral-700 hover:to-neutral-900 text-white font-black uppercase tracking-widest px-8 py-4 rounded-full shadow-[0_15px_30px_rgba(0,0,0,0.6)] border-2 border-neutral-700 active:scale-95 transition-all cursor-pointer"
-        >
-          <span className="text-amber-500 group-hover:text-amber-400 transition-colors">Passer mon tour</span>
-          <span className="text-xl group-hover:translate-x-1.5 transition-transform">⏭️</span>
-        </button>
-      )}
-
 
       {message && (
         <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-2xl border-2 backdrop-blur-md animate-bounce pointer-events-none text-center min-w-[300px] ${MESSAGE_STYLES[message.kind]}`}>
@@ -108,6 +98,9 @@ export default function Game() {
             onMove={move}
             canCallCrapette={!!state && !isMyTurn && !isOver}
             onCrapette={callCrapette}
+            players={state?.players ?? []}
+            activeSeat={isOver ? null : state?.turn ?? null}
+            onPassTurn={passTurn}
           />
         </div>
       </MotionConfig>

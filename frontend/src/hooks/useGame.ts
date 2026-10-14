@@ -26,6 +26,7 @@ type GameState = {
   selectableZones: string[];
   winner: Seat | null; // null tant que la partie continue
   rematchVotes: Seat[]; // joueurs qui ont demandé la revanche
+  players: ({ username: string } | null)[]; // pseudo de chaque joueur, par numéro de joueur
   ranked: boolean; // la partie compte pour l'historique (deux comptes différents)
 };
 

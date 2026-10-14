@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import Card from './Card';
 import CardStack from './CardStack';
 import CrapetteButton from './CrapetteButton';
+import PlayerPlate from './PlayerPlate';
 import { getGridPlacement, isHorizontalZone, stackOffset } from './boardLayout';
-import { ZONES_PLATEAU, ZONES } from '../../../constant/plateau';
+import { ZONES_PLATEAU, ZONES, playerZones } from '../../../constant/plateau';
 import type { CarteData } from '../hooks/useGame';
 
 type BoardProps = {
@@ -16,6 +17,10 @@ type BoardProps = {
   onMove: (from: string, to: string) => void;
   canCallCrapette: boolean;
   onCrapette: () => void;
+  // Pseudos des joueurs, par numéro de joueur, et joueur dont c'est le tour (null si la partie est finie).
+  players: ({ username: string } | null)[];
+  activeSeat: 1 | 2 | null;
+  onPassTurn: () => void;
 };
 
 // Ressort sans rebond (amortissement critique : damping = 2 * √stiffness), utilisé à la fois pour le retour
@@ -38,8 +43,27 @@ const findZoneAt = (event: MouseEvent | TouchEvent | PointerEvent, draggedId: st
 };
 
 export default function Board({
-  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onMove, canCallCrapette, onCrapette,
+  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onMove, canCallCrapette, onCrapette, players, activeSeat, onPassTurn,
 }: BoardProps) {
+  const mySeat = isPlayer1 ? 1 : 2;
+  const opponentSeat = isPlayer1 ? 2 : 1;
+  // Cartes qu'il reste à un joueur pour gagner : crapette, talon et défausse.
+  const cardsLeft = (seat: 1 | 2) => {
+    const zones: string[] = Object.values(playerZones(seat));
+    return cartes.filter((carte) => zones.includes(carte.zoneId)).length;
+  };
+  const plate = (seat: 1 | 2, gridRow: number) => (
+    <PlayerPlate
+      username={players[seat - 1]?.username ?? null}
+      isMe={seat === mySeat}
+      dos={seat === 1 ? 'rouge' : 'bleu'}
+      cardsLeft={cardsLeft(seat)}
+      isActive={activeSeat === seat}
+      onPassTurn={seat === mySeat ? onPassTurn : undefined}
+      style={{ gridColumn: '1 / span 8', gridRow, placeSelf: 'center' }}
+    />
+  );
+
   const myTalon = isPlayer1 ? ZONES.joueur1.talon : ZONES.joueur2.talon;
   // Chaque joueur voit ses propres cartes en bas de l'écran.
   const flipped = isPlayer1;
@@ -61,17 +85,6 @@ export default function Board({
   return (
     <div className="relative p-[60px_80px] bg-[radial-gradient(circle,_#2a723f_0%,_#113a1e_100%)] border-[18px] border-[#3e2723] rounded-[40px] shadow-[0_30px_60px_rgba(0,0,0,0.8),_inset_0_0_40px_rgba(0,0,0,0.8)]">
       <div className="absolute inset-1 border-3 border-[#d4af37] rounded-[20px] pointer-events-none shadow-[0_0_10px_rgba(212,175,55,0.4)]" />
-
-      <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none z-10">
-        <span className="font-black uppercase tracking-[0.4em] text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] text-white/30">
-          Adversaire
-        </span>
-      </div>
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center pointer-events-none z-10">
-        <span className="font-black uppercase tracking-[0.4em] text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] text-amber-400/80">
-          Vous (Cartes {isPlayer1 ? 'Rouges' : 'Bleues'})
-        </span>
-      </div>
 
       <div className="grid grid-cols-[repeat(28,32px)] grid-rows-[repeat(6,160px)] gap-[15px]">
         {ZONES_PLATEAU.map((zoneId) => (
@@ -127,6 +140,10 @@ export default function Board({
             </div>
           );
         })}
+
+        {/* Plaques des joueurs dans le coin gauche de leur rangée : l'adversaire en haut, soi en bas. */}
+        {plate(opponentSeat, 1)}
+        {plate(mySeat, 6)}
 
         {/* Le bouton est dans le coin droit de la rangée du joueur, en bas. */}
         <CrapetteButton
