@@ -9,6 +9,7 @@ import {
 import { consumePasswordReset, savePasswordReset } from '../repositories/password_reset_repositories';
 import { createAccessToken, createRandomToken, hashToken } from '../services/token';
 import { IS_PROD } from '../config';
+import { canSeeForAnna } from './forAnna';
 
 const ACCESS_COOKIE = {
   httpOnly: true, // invisible pour le JS côté client
@@ -104,7 +105,7 @@ export const me = async (req: AuthRequest, res: Response) => {
     res.status(404).json({ message: 'Utilisateur introuvable.' });
     return;
   }
-  res.json({ username: user.username, isAdmin: user.isAdmin, avatarUrl: avatarUrl(user) });
+  res.json({ username: user.username, isAdmin: user.isAdmin, avatarUrl: avatarUrl(user), canSeeForAnna: canSeeForAnna(user) });
 };
 
 // Échange un refresh token valide contre une nouvelle paire de tokens (rotation).

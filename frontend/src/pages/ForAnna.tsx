@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { fetchWithAuth } from '../services/api';
 
-// Début de l'histoire : 14 octobre 2024 à 20h00 (heure de Paris, encore à l'heure d'été).
-const START = new Date('2024-10-14T20:00:00+02:00');
+// Contenu envoyé par le serveur aux seuls comptes autorisés (voir backend/controllers/forAnna.ts).
+type Content = { message: string; since: string };
 
 const HEARTS = Array.from({ length: 16 }, (_, i) => ({
   left: (i * 37) % 100, // réparti sur la largeur
@@ -73,9 +75,29 @@ function useNowWhileVisible() {
 const plural = (count: number, singular: string, pluralForm = `${singular}s`) => (count > 1 ? pluralForm : singular);
 
 // Page personnalisée : 2 ans de relation et le temps passé ensemble, en direct.
+// ex : « 14 octobre 2024 à 8h00 »
+const formatSince = (date: Date) =>
+  `${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${date.getHours()}h${String(date.getMinutes()).padStart(2, '0')}`;
+
+// Page personnalisée, réservée à certains comptes : le serveur ne donne le contenu qu'à eux.
 export default function ForAnna() {
+  const navigate = useNavigate();
+  const [content, setContent] = useState<Content | null>(null);
+
+  useEffect(() => {
+    fetchWithAuth('/pour-toi')
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then(setContent)
+      .catch(() => navigate('/', { replace: true }));
+  }, [navigate]);
+
+  if (!content) return <div className="min-h-screen bg-[#14060b]" />;
+  return <Celebration message={content.message} since={new Date(content.since)} />;
+}
+
+function Celebration({ message, since }: { message: string; since: Date }) {
   const now = useNowWhileVisible();
-  const t = elapsedSince(START, now);
+  const t = elapsedSince(since, now);
 
   const units = [
     { id: 'years', value: t.years, label: plural(t.years, 'an') },
@@ -119,7 +141,7 @@ export default function ForAnna() {
             ❤️
           </motion.div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight text-transparent bg-clip-text bg-gradient-to-br from-[#ffd6e3] via-[#ff8fb1] to-[#e8cf8a] drop-shadow-[0_0_30px_rgba(255,105,150,0.3)]">
-            2 ans de relation c'est beau je tuberlupe !!
+            {message}
           </h1>
         </motion.div>
 
@@ -130,7 +152,7 @@ export default function ForAnna() {
           className="rounded-3xl bg-black/40 border border-rose-300/20 backdrop-blur-md p-6 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
         >
           <p className="text-center text-xs sm:text-sm uppercase tracking-[0.25em] text-rose-200/70 mb-6">
-            Ensemble depuis le 14 octobre 2024 à 20h00
+            Ensemble depuis le {formatSince(since)}
           </p>
           <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {units.map((unit) => (

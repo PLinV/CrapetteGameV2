@@ -8,7 +8,7 @@ import Avatar from '../components/Avatar';
 import PausedGameBanner from '../components/PausedGameBanner';
 import CardFan from '../components/CardFan';
 
-type Me = { username: string; isAdmin: boolean; avatarUrl: string | null };
+type Me = { username: string; isAdmin: boolean; avatarUrl: string | null; canSeeForAnna: boolean };
 type Summary = { games: number; wins: number; winRate: number; currentStreak: number };
 const json = (res: Response) => (res.ok ? res.json() : null);
 
@@ -131,6 +131,18 @@ export default function Home() {
               <span className="block text-4xl font-black uppercase tracking-[0.2em] text-[#ffe8a1]">Jouer</span>
               <span className="block mt-1 text-xs uppercase tracking-widest text-[#ffe8a1]/60">Créer ou rejoindre une partie</span>
             </Link>
+
+            {/* Page personnalisée : bouton visible seulement par les comptes autorisés (le serveur vérifie aussi). */}
+            {me.canSeeForAnna && (
+              <Link
+                to="/pour-toi"
+                aria-label="Une surprise"
+                className="group flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-rose-600/80 to-pink-500/80 border border-rose-300/50 shadow-[0_0_25px_rgba(244,63,94,0.35)] hover:shadow-[0_0_35px_rgba(244,63,94,0.6)] hover:-translate-y-0.5 transition-all"
+              >
+                <span className="text-2xl group-hover:scale-125 transition-transform">😉</span>
+                <span className="text-2xl group-hover:scale-125 transition-transform">❤️</span>
+              </Link>
+            )}
 
             {summary && (
               <div className="w-full max-w-2xl rounded-2xl bg-black/40 border border-white/10 backdrop-blur-sm py-5 px-4">

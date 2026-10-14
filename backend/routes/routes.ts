@@ -4,6 +4,7 @@ import {
   createPasswordReset, login, logout, me, refresh, register, resetPassword,
 } from '../controllers/auth';
 import { leaderboard, stats } from '../controllers/stats';
+import { forAnna } from '../controllers/forAnna';
 import {
   changePassword, changeUsername, getAvatar, removeAvatar, uploadAvatar,
 } from '../controllers/account';
@@ -35,6 +36,7 @@ router.post('/logout', logout);
 router.get('/me', requireAuth, me);
 router.get('/stats', requireAuth, stats);
 router.get('/leaderboard', requireAuth, leaderboard);
+router.get('/pour-toi', requireAuth, forAnna);
 
 // Paramètres du compte
 router.patch('/me/username', requireAuth, limit(10, 60), changeUsername);

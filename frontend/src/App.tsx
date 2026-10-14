@@ -18,7 +18,6 @@ export default function App() {
         <Route path="/login" element={<Auth mode="login" />} />
         <Route path="/register" element={<Auth mode="register" />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/pour-toi" element={<ForAnna />} />
         {/* Pages réservées aux joueurs connectés */}
         <Route element={<RequireAuth />}>
           <Route path="/matchmaking" element={<Matchmaking />} />
@@ -26,6 +25,7 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/pour-toi" element={<ForAnna />} />
         </Route>
       </Routes>
     </BrowserRouter>
