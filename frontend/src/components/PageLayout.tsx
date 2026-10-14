@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom';
 // Fond commun des pages hors partie, avec un lien de retour optionnel.
 export default function PageLayout({ children, backLink = true }: { children: ReactNode; backLink?: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-neutral-950 to-black text-white p-4">
+    <div className="relative flex flex-col items-center justify-center min-h-screen w-full overflow-hidden bg-[#0d0f0e] text-white p-4">
+      {/* Même fond que l'accueil : halo de tapis vert. */}
+      <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[1100px] h-[600px] rounded-full bg-[radial-gradient(ellipse_at_center,_rgba(42,114,63,0.3)_0%,_rgba(17,58,30,0.1)_45%,_transparent_70%)]" />
       {backLink && (
         <Link
           to="/"
@@ -14,7 +16,7 @@ export default function PageLayout({ children, backLink = true }: { children: Re
           Menu Principal
         </Link>
       )}
-      {children}
+      <div className="relative z-10 w-full flex flex-col items-center">{children}</div>
     </div>
   );
 }
