@@ -4,10 +4,13 @@ import {
   createPasswordReset, login, logout, me, refresh, register, resetPassword,
 } from '../controllers/auth';
 import { requireAdmin, requireAuth } from '../middleware/auth_middleware';
+import { IS_PROD } from '../config';
 
 // Limites par adresse IP, contre le brute force des mots de passe et la création de comptes en masse.
+// Désactivées en dev : tout passe par le proxy Vite, donc tous les essais comptent pour la même IP.
 const limit = (max: number, minutes: number) =>
   rateLimit({
+    skip: () => !IS_PROD,
     windowMs: minutes * 60 * 1000,
     limit: max,
     standardHeaders: 'draft-8',

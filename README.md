@@ -48,6 +48,10 @@ docker compose -f docker-compose.prod.yml exec db sh -c \
   "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -c \"UPDATE users SET is_admin = true WHERE username = 'PSEUDO'\""
 ```
 
+Mot de passe oublié : un admin connecté ouvre « Mot de passe oublié d'un joueur » sur la page d'accueil,
+entre le pseudo et envoie le lien obtenu au joueur (valable 1 h, une seule fois). Le joueur y choisit
+un nouveau mot de passe ; ses autres sessions sont fermées.
+
 ## Zones du plateau
 
 | Zone | Rôle |
