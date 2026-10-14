@@ -7,8 +7,6 @@ import {
   consumeRefreshToken, deleteRefreshToken, deleteUserRefreshTokens, saveRefreshToken,
 } from '../repositories/refresh_token_repositories';
 import { consumePasswordReset, savePasswordReset } from '../repositories/password_reset_repositories';
-import { getUserGames } from '../repositories/game_repositories';
-import { computeStats } from '../services/stats';
 import { createAccessToken, createRandomToken, hashToken } from '../services/token';
 import { IS_PROD } from '../config';
 
@@ -101,11 +99,6 @@ export const me = async (req: AuthRequest, res: Response) => {
     return;
   }
   res.json({ username: user.username, isAdmin: user.isAdmin });
-};
-
-// Historique et statistiques du joueur connecté.
-export const stats = async (req: AuthRequest, res: Response) => {
-  res.json(computeStats(await getUserGames(req.user!.id)));
 };
 
 // Échange un refresh token valide contre une nouvelle paire de tokens (rotation).

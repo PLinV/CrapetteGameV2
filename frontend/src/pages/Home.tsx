@@ -60,6 +60,7 @@ export default function Home() {
             </Link>
 
             <Link to="/history" className={secondaryButtonClass}>Historique</Link>
+            <Link to="/leaderboard" className={secondaryButtonClass}>Classement</Link>
 
             <button
               onClick={handleLogout}

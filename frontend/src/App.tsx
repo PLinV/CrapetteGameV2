@@ -5,6 +5,7 @@ import Matchmaking from './pages/Matchmaking';
 import Game from './pages/Game';
 import ResetPassword from './pages/ResetPassword';
 import History from './pages/History';
+import Leaderboard from './pages/Leaderboard';
 import RequireAuth from './components/RequireAuth';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/matchmaking" element={<Matchmaking />} />
           <Route path="/game/:roomId" element={<Game />} />
           <Route path="/history" element={<History />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,4 +1,4 @@
-import { PlayedGame } from '../repositories/game_repositories';
+import { LeaderboardRow, PlayedGame } from '../repositories/game_repositories';
 
 const RECENT_GAMES = 20;
 
@@ -57,4 +57,12 @@ export function computeStats(games: PlayedGame[]) {
       .sort((a, b) => b.games - a.games || b.wins - a.wins),
     recentGames: games.slice(0, RECENT_GAMES),
   };
+}
+
+// Classement général : d'abord le nombre de victoires, puis le taux de victoire.
+export function computeLeaderboard(rows: LeaderboardRow[]) {
+  return rows
+    .map((row) => ({ ...row, losses: row.games - row.wins, winRate: winRate(row.wins, row.games) }))
+    .sort((a, b) => b.wins - a.wins || b.winRate - a.winRate || a.username.localeCompare(b.username))
+    .map((row, index) => ({ rank: index + 1, ...row }));
 }

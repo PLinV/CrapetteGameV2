@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import {
-  createPasswordReset, login, logout, me, refresh, register, resetPassword, stats,
+  createPasswordReset, login, logout, me, refresh, register, resetPassword,
 } from '../controllers/auth';
+import { leaderboard, stats } from '../controllers/stats';
 import { requireAdmin, requireAuth } from '../middleware/auth_middleware';
 import { IS_PROD } from '../config';
 
@@ -30,6 +31,7 @@ router.post('/refresh', refresh);
 router.post('/logout', logout);
 router.get('/me', requireAuth, me);
 router.get('/stats', requireAuth, stats);
+router.get('/leaderboard', requireAuth, leaderboard);
 router.post('/reset-password', limit(10, 15), resetPassword);
 router.post('/admin/password-reset', requireAuth, requireAdmin, createPasswordReset);
 
