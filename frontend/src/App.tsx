@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Matchmaking from './pages/Matchmaking';
 import Game from './pages/Game';
+import ResetPassword from './pages/ResetPassword';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/register" element={<Auth mode="register" />} />
         <Route path="/matchmaking" element={<Matchmaking />} />
         <Route path="/game/:roomId" element={<Game />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </BrowserRouter>
   );

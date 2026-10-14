@@ -20,6 +20,11 @@ export async function deleteRefreshToken(tokenHash: string) {
   await query('DELETE FROM refresh_tokens WHERE token_hash = $1', [tokenHash]);
 }
 
+// Déconnecte l'utilisateur de tous ses appareils.
+export async function deleteUserRefreshTokens(userId: number) {
+  await query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+}
+
 export async function deleteExpiredRefreshTokens(): Promise<number> {
   const rows = await query('DELETE FROM refresh_tokens WHERE expires_at IS NULL OR expires_at < NOW() RETURNING id');
   return rows.length;

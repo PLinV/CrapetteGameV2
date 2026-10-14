@@ -2,15 +2,20 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchWithAuth } from '../services/api';
 import PageLayout, { Suits, primaryButtonClass, secondaryButtonClass } from '../components/PageLayout';
+import ResetLinkGenerator from '../components/ResetLinkGenerator';
 
 export default function Home() {
   const [username, setUsername] = useState<string | null>(null); // null = non connecté
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchWithAuth('/me')
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setUsername(data?.username ?? null))
+      .then((data) => {
+        setUsername(data?.username ?? null);
+        setIsAdmin(!!data?.isAdmin);
+      })
       .catch((err) => console.error('Serveur injoignable :', err))
       .finally(() => setIsLoading(false));
   }, []);
@@ -18,6 +23,7 @@ export default function Home() {
   const handleLogout = async () => {
     await fetchWithAuth('/logout', { method: 'POST' });
     setUsername(null);
+    setIsAdmin(false);
   };
 
   if (isLoading) {
@@ -59,6 +65,8 @@ export default function Home() {
             >
               Se déconnecter
             </button>
+
+            {isAdmin && <ResetLinkGenerator />}
           </div>
         ) : (
           <>

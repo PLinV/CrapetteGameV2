@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth_middleware';
 import {
-  User, addUser, findUserByCredentials, getUserById, getUserByUsername,
+  User, addUser, findUserByCredentials, getUserById, getUserByUsername, updatePassword,
 } from '../repositories/user_repositories';
-import { consumeRefreshToken, deleteRefreshToken, saveRefreshToken } from '../repositories/refresh_token_repositories';
-import { createAccessToken, createRefreshToken, hashRefreshToken } from '../services/token';
+import {
+  consumeRefreshToken, deleteRefreshToken, deleteUserRefreshTokens, saveRefreshToken,
+} from '../repositories/refresh_token_repositories';
+import { consumePasswordReset, savePasswordReset } from '../repositories/password_reset_repositories';
+import { createAccessToken, createRandomToken, hashToken } from '../services/token';
 import { IS_PROD } from '../config';
 
 const ACCESS_COOKIE = {
@@ -25,14 +28,20 @@ function credentialsError(username: unknown, password: unknown, isRegister: bool
   }
   if (!isRegister) return null;
   if (!USERNAME_REGEX.test(username)) return 'Pseudo : 3 à 20 caractères (lettres, chiffres, - et _).';
-  if (password.length < 8 || password.length > 72) return 'Mot de passe : 8 à 72 caractères.';
+  return passwordError(password);
+}
+
+function passwordError(password: unknown): string | null {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 72) {
+    return 'Mot de passe : 8 à 72 caractères.';
+  }
   return null;
 }
 
 // Crée un access token (15 min) et un refresh token (7 jours) en cookies.
 async function startSession(res: Response, user: User) {
-  const refreshToken = createRefreshToken();
-  await saveRefreshToken(user.id, hashRefreshToken(refreshToken));
+  const refreshToken = createRandomToken();
+  await saveRefreshToken(user.id, hashToken(refreshToken));
 
   res.cookie('access_token', createAccessToken(user), { ...ACCESS_COOKIE, maxAge: 15 * 60 * 1000 });
   res.cookie('refresh_token', refreshToken, { ...REFRESH_COOKIE, maxAge: 7 * 24 * 60 * 60 * 1000 });
@@ -95,7 +104,7 @@ export const me = async (req: AuthRequest, res: Response) => {
 // Échange un refresh token valide contre une nouvelle paire de tokens (rotation).
 export const refresh = async (req: Request, res: Response) => {
   const token = req.cookies.refresh_token;
-  const userId = token ? await consumeRefreshToken(hashRefreshToken(token)) : null;
+  const userId = token ? await consumeRefreshToken(hashToken(token)) : null;
   const user = userId ? await getUserById(userId) : null;
   if (!user) {
     endSession(res);
@@ -109,7 +118,44 @@ export const refresh = async (req: Request, res: Response) => {
 
 export const logout = async (req: Request, res: Response) => {
   const token = req.cookies.refresh_token;
-  if (token) await deleteRefreshToken(hashRefreshToken(token));
+  if (token) await deleteRefreshToken(hashToken(token));
   endSession(res);
   res.json({ message: 'Déconnexion réussie.' });
+};
+
+// Admin : crée un lien de réinitialisation (1 h, usage unique) pour un joueur qui a oublié son mot de passe.
+// Le front en fait une URL que l'admin transmet au joueur.
+export const createPasswordReset = async (req: Request, res: Response) => {
+  const { username } = req.body ?? {};
+  const user = typeof username === 'string' ? await getUserByUsername(username) : null;
+  if (!user) {
+    res.status(404).json({ message: 'Joueur introuvable.' });
+    return;
+  }
+
+  const token = createRandomToken();
+  await savePasswordReset(user.id, hashToken(token));
+  res.json({ username: user.username, token });
+};
+
+// Le joueur choisit un nouveau mot de passe grâce au lien : ses anciennes sessions sont fermées et il est connecté.
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, password } = req.body ?? {};
+  const error = passwordError(password);
+  if (error) {
+    res.status(400).json({ message: error });
+    return;
+  }
+
+  const userId = typeof token === 'string' && token ? await consumePasswordReset(hashToken(token)) : null;
+  const user = userId ? await getUserById(userId) : null;
+  if (!user) {
+    res.status(400).json({ message: 'Lien invalide ou expiré : demandez-en un nouveau à l\'administrateur.' });
+    return;
+  }
+
+  await updatePassword(user.id, password);
+  await deleteUserRefreshTokens(user.id);
+  await startSession(res, user);
+  res.json({ message: 'Mot de passe modifié.' });
 };

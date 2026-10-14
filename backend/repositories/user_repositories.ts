@@ -10,13 +10,19 @@ export type User = { id: number; username: string; isAdmin: boolean };
 
 const USER_COLUMNS = 'id, username, is_admin AS "isAdmin"';
 
+const hashPassword = (password: string) => bcrypt.hash(password + config.pepper, BCRYPT_ROUNDS);
+
 export async function addUser(username: string, password: string): Promise<User> {
-  const hash = await bcrypt.hash(password + config.pepper, BCRYPT_ROUNDS);
+  const hash = await hashPassword(password);
   const [user] = await query<User>(
     `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING ${USER_COLUMNS}`,
     [username, hash],
   );
   return user;
+}
+
+export async function updatePassword(userId: number, password: string) {
+  await query('UPDATE users SET password = $1 WHERE id = $2', [await hashPassword(password), userId]);
 }
 
 export async function getUserByUsername(username: string): Promise<User | null> {

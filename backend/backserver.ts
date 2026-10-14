@@ -9,9 +9,10 @@ import router from './routes/routes';
 import { setupGameSockets } from './sockets/gameSocket';
 import { initDB } from './repositories/database';
 import { deleteExpiredRefreshTokens } from './repositories/refresh_token_repositories';
+import { deleteExpiredPasswordResets } from './repositories/password_reset_repositories';
 
 const app = express();
-// En production, le serveur est derrière un reverse proxy (Caddy) : l'IP réelle est dans X-Forwarded-For.
+// En production, le serveur est derrière un reverse proxy (Traefik) : l'IP réelle est dans X-Forwarded-For.
 if (IS_PROD) app.set('trust proxy', 1);
 
 app.use(helmet()); // en-têtes de sécurité (CSP, anti-clickjacking, etc.)
@@ -39,10 +40,11 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 const server = createServer(app);
 setupGameSockets(new Server(server, { maxHttpBufferSize: 10_000 }));
 
-// Tous les jours à 3h : suppression des refresh tokens expirés.
+// Tous les jours à 3h : suppression des refresh tokens et liens de réinitialisation expirés.
 cron.schedule('0 3 * * *', async () => {
   try {
     console.log(`[CRON] ${await deleteExpiredRefreshTokens()} refresh tokens expirés supprimés.`);
+    console.log(`[CRON] ${await deleteExpiredPasswordResets()} liens de réinitialisation expirés supprimés.`);
   } catch (error) {
     console.error('[CRON] Erreur lors du nettoyage :', error);
   }

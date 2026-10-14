@@ -26,6 +26,14 @@ export async function initDB() {
       expires_at TIMESTAMP NOT NULL
     );
 
+    -- liens de réinitialisation de mot de passe, générés par un admin
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash VARCHAR(255) NOT NULL,
+      expires_at TIMESTAMP NOT NULL
+    );
+
     -- pour les bases créées avant l'ajout de ces colonnes
     ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;

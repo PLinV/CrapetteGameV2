@@ -21,11 +21,11 @@ export function verifyAccessToken(token: string): TokenUser | null {
   }
 }
 
-// Le refresh token est une valeur aléatoire : on ne stocke que son hash en base.
-export function createRefreshToken(): string {
+// Refresh tokens et liens de réinitialisation : valeurs aléatoires dont on ne stocke que le hash en base.
+export function createRandomToken(): string {
   return crypto.randomBytes(40).toString('hex');
 }
 
-export function hashRefreshToken(token: string): string {
+export function hashToken(token: string): string {
   return crypto.createHmac('sha256', config.refreshTokenSecret).update(token).digest('hex');
 }

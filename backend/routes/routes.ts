@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { login, logout, me, refresh, register } from '../controllers/auth';
-import { requireAuth } from '../middleware/auth_middleware';
+import {
+  createPasswordReset, login, logout, me, refresh, register, resetPassword,
+} from '../controllers/auth';
+import { requireAdmin, requireAuth } from '../middleware/auth_middleware';
 
 // Limites par adresse IP, contre le brute force des mots de passe et la création de comptes en masse.
 const limit = (max: number, minutes: number) =>
@@ -24,5 +26,7 @@ router.post('/login', limit(10, 15), login);
 router.post('/refresh', refresh);
 router.post('/logout', logout);
 router.get('/me', requireAuth, me);
+router.post('/reset-password', limit(10, 15), resetPassword);
+router.post('/admin/password-reset', requireAuth, requireAdmin, createPasswordReset);
 
 export default router;

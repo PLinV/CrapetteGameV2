@@ -28,6 +28,7 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotHelp, setShowForgotHelp] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,6 +81,20 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
             <input type="password" required minLength={mode === 'register' ? 8 : undefined} maxLength={72} placeholder="••••••••" value={password}
               onChange={(e) => setPassword(e.target.value)} className={`${inputClass} text-base normal-case tracking-normal`} />
           </label>
+
+          {mode === 'login' && (
+            <div className="text-right -mt-3 text-xs">
+              <button type="button" onClick={() => setShowForgotHelp(!showForgotHelp)}
+                className="text-gray-500 hover:text-amber-400 cursor-pointer">
+                Mot de passe oublié ?
+              </button>
+              {showForgotHelp && (
+                <p className="mt-2 text-left text-gray-400">
+                  Demandez à l'administrateur du site un lien de réinitialisation : il vous permettra de choisir un nouveau mot de passe.
+                </p>
+              )}
+            </div>
+          )}
 
           <button type="submit" disabled={isLoading} className={`${primaryButtonClass} mt-4 p-5 text-base disabled:opacity-70 disabled:cursor-not-allowed`}>
             {isLoading ? texts.loading : texts.submit}
