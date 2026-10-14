@@ -16,7 +16,7 @@ export class GameRoom {
   // Jeton secret de chaque joueur (jamais envoyé à l'adversaire) :
   // index 0 = joueur 1 (cartes rouges), index 1 = joueur 2 (cartes bleues).
   public players: [string | null, string | null] = [null, null];
-  // Compte de chaque joueur (null s'il joue sans être connecté), pour l'historique.
+  // Compte de chaque joueur (null si la place est libre), pour l'historique.
   private userIds: [number | null, number | null] = [null, null];
   // Vrai une fois le résultat de la partie en cours enregistré.
   private resultTaken = false;
@@ -27,7 +27,7 @@ export class GameRoom {
 
   // Renvoie le numéro du joueur, ou null si la table est pleine.
   // Un joueur déjà assis (rechargement de page) retrouve sa place.
-  public join(token: string, userId: number | null): PlayerNumber | null {
+  public join(token: string, userId: number): PlayerNumber | null {
     const existing = this.playerNumber(token);
     if (existing) return existing;
 

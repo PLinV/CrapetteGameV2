@@ -38,7 +38,7 @@ export default function GameOverPopup({ won, ranked, iAskedRematch, opponentAske
 
         {!ranked && (
           <p className="relative mt-5 text-xs text-gray-500">
-            Partie non comptée dans l'historique (un joueur n'est pas connecté, ou les deux places sont tenues par le même compte).
+            Partie non comptée dans l'historique : les deux places sont tenues par le même compte.
           </p>
         )}
 

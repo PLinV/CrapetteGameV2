@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../services/socket';
 import { fetchWithAuth } from '../services/api';
+import { useCurrentUser } from './useCurrentUser';
 
 export type CarteData = {
   id: string;
@@ -46,10 +47,15 @@ export function useGame(roomId: string) {
   const mySeatRef = useRef<Seat | null>(null);
   const [state, setState] = useState<GameState | null>(null); // null = en attente d'un adversaire
   const [message, setMessage] = useState<Message | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isAdmin } = useCurrentUser();
 
   useEffect(() => {
-    const join = () => socket.emit('join_room', { roomId, token });
+    let cancelled = false;
+    let refreshed = false;
+    const join = () => {
+      refreshed = false;
+      socket.emit('join_room', { roomId, token });
+    };
     const onSeat = (seat: Seat) => {
       mySeatRef.current = seat;
       setMySeat(seat);
@@ -66,7 +72,27 @@ export function useGame(roomId: string) {
       navigate('/matchmaking');
     };
 
+    const toLogin = () => navigate('/login', { replace: true, state: { from: `/game/${roomId}` } });
+    // Le serveur refuse les sockets sans compte connecté. L'access token (15 min) a pu expirer
+    // avant une reconnexion : on le rafraîchit une fois, puis on renvoie vers la connexion.
+    const onConnectError = (err: Error) => {
+      if (err.message !== 'unauthorized') return; // simple coupure réseau : socket.io réessaie tout seul
+      if (refreshed) {
+        toLogin();
+        return;
+      }
+      refreshed = true;
+      fetchWithAuth('/me')
+        .then((res) => {
+          if (cancelled) return;
+          if (res.ok) socket.connect();
+          else toLogin();
+        })
+        .catch(toLogin);
+    };
+
     socket.on('connect', join); // à chaque connexion, y compris après une coupure réseau
+    socket.on('connect_error', onConnectError);
     socket.on('seat', onSeat);
     socket.on('game_state', setState);
     socket.on('waiting_for_opponent', onWaiting);
@@ -74,20 +100,14 @@ export function useGame(roomId: string) {
     socket.on('crapette_called', onCrapette);
     socket.on('room_error', onRoomError);
 
-    // /me rafraîchit les cookies d'auth avant la connexion : le serveur saura si on est admin.
-    let cancelled = false;
-    fetchWithAuth('/me')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((me) => setIsAdmin(!!me?.isAdmin))
-      .catch(() => setIsAdmin(false))
-      .finally(() => {
-        if (!cancelled) socket.connect();
-      });
+    // RequireAuth vient d'appeler /me : les cookies d'auth sont à jour.
+    socket.connect();
 
     return () => {
       cancelled = true;
       socket.disconnect();
       socket.off('connect', join);
+      socket.off('connect_error', onConnectError);
       socket.off('seat', onSeat);
       socket.off('game_state', setState);
       socket.off('waiting_for_opponent', onWaiting);

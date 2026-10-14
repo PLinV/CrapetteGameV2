@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API_URL } from '../services/api';
 import PageLayout, { Suits, inputClass, panelClass, primaryButtonClass } from '../components/PageLayout';
 
@@ -24,6 +24,10 @@ const TEXTS = {
 export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   const texts = TEXTS[mode];
   const navigate = useNavigate();
+  const location = useLocation();
+  // Page protégée demandée avant la connexion (voir RequireAuth) : on y retourne ensuite.
+  const from: unknown = location.state?.from;
+  const redirectTo = typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -42,7 +46,7 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Une erreur est survenue.');
     } finally {
@@ -103,7 +107,7 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
 
         <div className="text-center mt-10 pt-6 border-t border-white/5 text-sm text-gray-500">
           {texts.switchText}{' '}
-          <Link to={texts.switchLink.to} className="text-amber-500 hover:underline font-bold">
+          <Link to={texts.switchLink.to} state={location.state} className="text-amber-500 hover:underline font-bold">
             {texts.switchLink.label}
           </Link>
         </div>

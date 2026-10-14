@@ -38,13 +38,18 @@ export function setupGameSockets(io: Server) {
     }, EMPTY_ROOM_TTL_MS);
   };
 
-  // À la connexion, on identifie le compte du joueur (cookie d'auth) : historique des parties et rôle admin.
+  // Seuls les joueurs connectés à un compte peuvent jouer : le compte (cookie d'auth) sert
+  // à l'historique des parties et au rôle admin. Le front rafraîchit son token puis réessaie.
   io.use(async (socket, next) => {
     const token = readCookie(socket.handshake.headers.cookie, 'access_token');
     const tokenUser = token ? verifyAccessToken(decodeURIComponent(token)) : null;
     const user = tokenUser ? await getUserById(tokenUser.id).catch(() => null) : null;
-    socket.data.userId = user?.id ?? null;
-    socket.data.isAdmin = !!user?.isAdmin;
+    if (!user) {
+      next(new Error('unauthorized'));
+      return;
+    }
+    socket.data.userId = user.id;
+    socket.data.isAdmin = user.isAdmin;
     next();
   });
 

@@ -5,6 +5,7 @@ import Matchmaking from './pages/Matchmaking';
 import Game from './pages/Game';
 import ResetPassword from './pages/ResetPassword';
 import History from './pages/History';
+import RequireAuth from './components/RequireAuth';
 
 export default function App() {
   return (
@@ -13,10 +14,13 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Auth mode="login" />} />
         <Route path="/register" element={<Auth mode="register" />} />
-        <Route path="/matchmaking" element={<Matchmaking />} />
-        <Route path="/game/:roomId" element={<Game />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/history" element={<History />} />
+        {/* Pages réservées aux joueurs connectés */}
+        <Route element={<RequireAuth />}>
+          <Route path="/matchmaking" element={<Matchmaking />} />
+          <Route path="/game/:roomId" element={<Game />} />
+          <Route path="/history" element={<History />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
