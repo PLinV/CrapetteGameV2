@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { fetchWithAuth } from '../services/api';
 import PageLayout, { Suits, primaryButtonClass, secondaryButtonClass } from '../components/PageLayout';
 import ResetLinkGenerator from '../components/ResetLinkGenerator';
+import Avatar from '../components/Avatar';
 
 export default function Home() {
   const [username, setUsername] = useState<string | null>(null); // null = non connecté
   const [isAdmin, setIsAdmin] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -15,6 +17,7 @@ export default function Home() {
       .then((data) => {
         setUsername(data?.username ?? null);
         setIsAdmin(!!data?.isAdmin);
+        setAvatarUrl(data?.avatarUrl ?? null);
       })
       .catch((err) => console.error('Serveur injoignable :', err))
       .finally(() => setIsLoading(false));
@@ -48,6 +51,7 @@ export default function Home() {
         {username ? (
           <div className="flex flex-col items-center gap-6">
             <div className="text-sm text-amber-400 font-bold uppercase tracking-widest text-center">
+              <Avatar url={avatarUrl} name={username} size={72} gold className="mx-auto mb-3" />
               Bienvenue à la table,<br />
               <span className="text-white text-lg">{username}</span>
             </div>
@@ -61,6 +65,7 @@ export default function Home() {
 
             <Link to="/history" className={secondaryButtonClass}>Historique</Link>
             <Link to="/leaderboard" className={secondaryButtonClass}>Classement</Link>
+            <Link to="/settings" className={secondaryButtonClass}>Paramètres</Link>
 
             <button
               onClick={handleLogout}

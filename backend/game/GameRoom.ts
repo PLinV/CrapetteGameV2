@@ -13,7 +13,7 @@ export type GameResult = {
 };
 
 // Compte du joueur assis à une place.
-export type Account = { id: number; username: string };
+export type Account = { id: number; username: string; avatarUrl: string | null };
 
 export class GameRoom {
   // Jeton secret de chaque joueur (jamais envoyé à l'adversaire) :
@@ -110,7 +110,7 @@ export class GameRoom {
       selectableZones: this.board?.selectableZones() ?? [],
       winner: this.board?.winner ?? null,
       rematchVotes: [...this.rematchVotes].map((token) => this.playerNumber(token)),
-      players: this.accounts.map((account) => (account ? { username: account.username } : null)), // par numéro de joueur
+      players: this.accounts.map((account) => (account ? { username: account.username, avatarUrl: account.avatarUrl } : null)), // par numéro de joueur
       ranked: this.isRanked(), // la partie sera-t-elle comptée dans l'historique ?
     };
   }

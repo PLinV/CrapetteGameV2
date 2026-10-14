@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchWithAuth } from '../services/api';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+import Avatar from '../components/Avatar';
 import PageLayout, { Suits, panelClass, primaryButtonClass } from '../components/PageLayout';
 
 type PlayerRow = {
   rank: number;
   username: string;
+  avatarUrl: string | null;
   games: number;
   wins: number;
   losses: number;
@@ -76,7 +78,10 @@ export default function Leaderboard() {
                   if (!player) return <div key={index} className="w-24 md:w-36" />;
                   return (
                     <div key={index} className="w-24 md:w-36 flex flex-col items-center gap-2">
-                      <span className="text-3xl md:text-4xl">{MEDALS[index]}</span>
+                      <div className="relative">
+                        <Avatar url={player.avatarUrl} name={player.username} size={index === 0 ? 72 : 56} gold={player.username === me.username} />
+                        <span className="absolute -bottom-2 -right-2 text-2xl md:text-3xl">{MEDALS[index]}</span>
+                      </div>
                       <span className={`max-w-full truncate font-black ${player.username === me.username ? 'text-amber-300' : 'text-white'}`}>
                         {player.username}
                       </span>
@@ -110,8 +115,12 @@ export default function Leaderboard() {
                     return (
                       <tr key={p.username} className={`border-t border-white/5 text-right ${isMe ? 'bg-amber-500/10' : ''}`}>
                         <td className="text-left py-3 pl-1 font-black text-gray-400">{MEDALS[p.rank - 1] ?? p.rank}</td>
-                        <td className={`text-left py-3 font-bold truncate max-w-32 ${isMe ? 'text-amber-300' : 'text-white'}`}>
-                          {p.username}{isMe && <span className="ml-1 text-xs text-amber-400/70">(vous)</span>}
+                        <td className={`text-left py-3 font-bold ${isMe ? 'text-amber-300' : 'text-white'}`}>
+                          <span className="flex items-center gap-2 min-w-0">
+                            <Avatar url={p.avatarUrl} name={p.username} size={28} gold={isMe} />
+                            <span className="truncate max-w-28 md:max-w-none">{p.username}</span>
+                            {isMe && <span className="text-xs text-amber-400/70">(vous)</span>}
+                          </span>
                         </td>
                         <td className="py-3 px-2 text-gray-300">{p.games}</td>
                         <td className="py-3 px-2 text-amber-400 font-bold">{p.wins}</td>

@@ -33,6 +33,12 @@ if (IS_PROD) {
 
 // Express 5 transmet ici les erreurs levées par les contrôleurs async.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  // Erreurs de lecture de la requête (corps trop gros, JSON invalide...) : c'est le client qui se trompe.
+  const status = (err as { status?: number }).status;
+  if (status && status >= 400 && status < 500) {
+    res.status(status).json({ message: status === 413 ? 'Fichier trop volumineux.' : 'Requête invalide.' });
+    return;
+  }
   console.error(err);
   res.status(500).json({ message: 'Erreur interne.' });
 });

@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react';
+import Avatar from './Avatar';
 
 type PlayerPlateProps = {
   username: string | null;
+  avatarUrl: string | null;
   isMe: boolean;
   dos: 'rouge' | 'bleu';
   cardsLeft: number; // crapette + talon + défausse
@@ -16,7 +18,7 @@ const DOS = {
 };
 
 // Plaque d'un joueur sur le plateau : pseudo, couleur de ses cartes et cartes qu'il lui reste.
-export default function PlayerPlate({ username, isMe, dos, cardsLeft, isActive, onPassTurn, style }: PlayerPlateProps) {
+export default function PlayerPlate({ username, avatarUrl, isMe, dos, cardsLeft, isActive, onPassTurn, style }: PlayerPlateProps) {
   const name = username ?? '…';
 
   return (
@@ -28,15 +30,7 @@ export default function PlayerPlate({ username, isMe, dos, cardsLeft, isActive, 
           : 'bg-black/30 border-white/10'
       }`}
     >
-      <div
-        className={`shrink-0 w-16 h-16 rounded-full flex items-center justify-center text-3xl font-black uppercase border-2 ${
-          isMe
-            ? 'bg-gradient-to-b from-[#ffe8a1] to-[#d4af37] text-[#3e2723] border-[#ffe8a1]'
-            : 'bg-gradient-to-b from-neutral-600 to-neutral-800 text-white border-neutral-500'
-        }`}
-      >
-        {name[0]}
-      </div>
+      <Avatar url={avatarUrl} name={name} size={72} gold={isMe} />
 
       <div className="min-w-0 flex flex-col gap-1">
         <span className={`text-2xl font-black truncate ${isMe ? 'text-amber-300' : 'text-white'}`}>

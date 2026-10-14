@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth_middleware';
 import {
-  User, addUser, findUserByCredentials, getUserById, getUserByUsername, updatePassword,
+  User, addUser, avatarUrl, findUserByCredentials, getUserById, getUserByUsername, updatePassword,
 } from '../repositories/user_repositories';
 import {
   consumeRefreshToken, deleteRefreshToken, deleteUserRefreshTokens, saveRefreshToken,
@@ -27,11 +27,17 @@ function credentialsError(username: unknown, password: unknown, isRegister: bool
     return 'Tous les champs sont requis.';
   }
   if (!isRegister) return null;
-  if (!USERNAME_REGEX.test(username)) return 'Pseudo : 3 à 20 caractères (lettres, chiffres, - et _).';
-  return passwordError(password);
+  return usernameError(username) ?? passwordError(password);
 }
 
-function passwordError(password: unknown): string | null {
+export function usernameError(username: unknown): string | null {
+  if (typeof username !== 'string' || !USERNAME_REGEX.test(username)) {
+    return 'Pseudo : 3 à 20 caractères (lettres, chiffres, - et _).';
+  }
+  return null;
+}
+
+export function passwordError(password: unknown): string | null {
   if (typeof password !== 'string' || password.length < 8 || password.length > 72) {
     return 'Mot de passe : 8 à 72 caractères.';
   }
@@ -39,7 +45,7 @@ function passwordError(password: unknown): string | null {
 }
 
 // Crée un access token (15 min) et un refresh token (7 jours) en cookies.
-async function startSession(res: Response, user: User) {
+export async function startSession(res: Response, user: User) {
   const refreshToken = createRandomToken();
   await saveRefreshToken(user.id, hashToken(refreshToken));
 
@@ -98,7 +104,7 @@ export const me = async (req: AuthRequest, res: Response) => {
     res.status(404).json({ message: 'Utilisateur introuvable.' });
     return;
   }
-  res.json({ username: user.username, isAdmin: user.isAdmin });
+  res.json({ username: user.username, isAdmin: user.isAdmin, avatarUrl: avatarUrl(user) });
 };
 
 // Échange un refresh token valide contre une nouvelle paire de tokens (rotation).

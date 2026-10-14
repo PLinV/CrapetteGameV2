@@ -2,7 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { GameRoom } from '../game/GameRoom';
 import { PlayerNumber } from '../../constant/plateau';
 import { verifyAccessToken } from '../services/token';
-import { getUserById } from '../repositories/user_repositories';
+import { avatarUrl, getUserById } from '../repositories/user_repositories';
 import { saveGame } from '../repositories/game_repositories';
 
 const MAX_ROOMS = 500;
@@ -50,6 +50,7 @@ export function setupGameSockets(io: Server) {
     }
     socket.data.userId = user.id;
     socket.data.username = user.username;
+    socket.data.avatarUrl = avatarUrl(user);
     socket.data.isAdmin = user.isAdmin;
     next();
   });
@@ -90,7 +91,7 @@ export function setupGameSockets(io: Server) {
       const room = rooms.get(roomId) ?? new GameRoom();
       rooms.set(roomId, room);
 
-      const seat = room.join(token, { id: socket.data.userId, username: socket.data.username });
+      const seat = room.join(token, { id: socket.data.userId, username: socket.data.username, avatarUrl: socket.data.avatarUrl });
       if (!seat) {
         socket.emit('room_error', 'La table est déjà pleine !');
         return;

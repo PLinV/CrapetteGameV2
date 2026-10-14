@@ -6,6 +6,7 @@ import Game from './pages/Game';
 import ResetPassword from './pages/ResetPassword';
 import History from './pages/History';
 import Leaderboard from './pages/Leaderboard';
+import Settings from './pages/Settings';
 import RequireAuth from './components/RequireAuth';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/game/:roomId" element={<Game />} />
           <Route path="/history" element={<History />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

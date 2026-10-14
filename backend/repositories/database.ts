@@ -49,6 +49,14 @@ export async function initDB() {
     CREATE INDEX IF NOT EXISTS games_winner_idx ON games (winner_id);
     CREATE INDEX IF NOT EXISTS games_loser_idx ON games (loser_id);
 
+    -- photo de profil (petite image, redimensionnée par le navigateur avant l'envoi)
+    CREATE TABLE IF NOT EXISTS avatars (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      mime VARCHAR(20) NOT NULL,
+      data BYTEA NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
     -- pour les bases créées avant l'ajout de ces colonnes
     ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;

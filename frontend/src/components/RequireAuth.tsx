@@ -17,7 +17,7 @@ export default function RequireAuth() {
       .catch(() => null)
       .then((me) => {
         if (cancelled) return;
-        if (me) setUser({ username: me.username, isAdmin: !!me.isAdmin });
+        if (me) setUser({ username: me.username, isAdmin: !!me.isAdmin, avatarUrl: me.avatarUrl ?? null });
         else navigate('/login', { replace: true, state: { from: pathname } });
       });
     return () => {
@@ -34,7 +34,7 @@ export default function RequireAuth() {
   }
 
   return (
-    <CurrentUserContext.Provider value={user}>
+    <CurrentUserContext.Provider value={{ user, setUser }}>
       <Outlet />
     </CurrentUserContext.Provider>
   );

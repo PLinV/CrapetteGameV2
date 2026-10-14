@@ -46,11 +46,12 @@ export async function getUserGames(userId: number): Promise<PlayedGame[]> {
 }
 
 // Bilan de chaque joueur ayant au moins une partie terminée.
-export type LeaderboardRow = { username: string; games: number; wins: number; crapettes: number };
+export type LeaderboardRow = { username: string; avatarVersion: string | null; games: number; wins: number; crapettes: number };
 
 export async function getLeaderboardRows(): Promise<LeaderboardRow[]> {
   return query<LeaderboardRow>(
     `SELECT u.username,
+            (SELECT (EXTRACT(EPOCH FROM a.updated_at) * 1000)::BIGINT::TEXT FROM avatars a WHERE a.user_id = u.id) AS "avatarVersion",
             COUNT(*)::INTEGER AS games,
             COUNT(*) FILTER (WHERE g.winner_id = u.id)::INTEGER AS wins,
             SUM(CASE WHEN g.winner_id = u.id THEN g.winner_crapettes ELSE g.loser_crapettes END)::INTEGER AS crapettes

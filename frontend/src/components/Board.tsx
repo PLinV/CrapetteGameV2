@@ -18,7 +18,7 @@ type BoardProps = {
   canCallCrapette: boolean;
   onCrapette: () => void;
   // Pseudos des joueurs, par numéro de joueur, et joueur dont c'est le tour (null si la partie est finie).
-  players: ({ username: string } | null)[];
+  players: ({ username: string; avatarUrl: string | null } | null)[];
   activeSeat: 1 | 2 | null;
   onPassTurn: () => void;
 };
@@ -55,6 +55,7 @@ export default function Board({
   const plate = (seat: 1 | 2, gridRow: number) => (
     <PlayerPlate
       username={players[seat - 1]?.username ?? null}
+      avatarUrl={players[seat - 1]?.avatarUrl ?? null}
       isMe={seat === mySeat}
       dos={seat === 1 ? 'rouge' : 'bleu'}
       cardsLeft={cardsLeft(seat)}

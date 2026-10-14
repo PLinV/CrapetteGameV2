@@ -1,9 +1,12 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import {
   createPasswordReset, login, logout, me, refresh, register, resetPassword,
 } from '../controllers/auth';
 import { leaderboard, stats } from '../controllers/stats';
+import {
+  changePassword, changeUsername, getAvatar, removeAvatar, uploadAvatar,
+} from '../controllers/account';
 import { requireAdmin, requireAuth } from '../middleware/auth_middleware';
 import { IS_PROD } from '../config';
 
@@ -32,6 +35,15 @@ router.post('/logout', logout);
 router.get('/me', requireAuth, me);
 router.get('/stats', requireAuth, stats);
 router.get('/leaderboard', requireAuth, leaderboard);
+
+// Paramètres du compte
+router.patch('/me/username', requireAuth, limit(10, 60), changeUsername);
+router.patch('/me/password', requireAuth, limit(10, 15), changePassword);
+// Le navigateur envoie une image déjà réduite (256 px, quelques dizaines de Ko).
+router.put('/me/avatar', requireAuth, limit(30, 60),
+  express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '300kb' }), uploadAvatar);
+router.delete('/me/avatar', requireAuth, removeAvatar);
+router.get('/avatars/:username', getAvatar);
 router.post('/reset-password', limit(10, 15), resetPassword);
 router.post('/admin/password-reset', requireAuth, requireAdmin, createPasswordReset);
 
