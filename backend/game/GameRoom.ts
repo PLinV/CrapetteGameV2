@@ -191,6 +191,10 @@ export class GameRoom {
     };
   }
 
+  public seatedUserIds(): number[] {
+    return this.accounts.filter((account): account is Account => account !== null).map((account) => account.id);
+  }
+
   public isEmpty(): boolean {
     return this.accounts.every((account) => account === null);
   }

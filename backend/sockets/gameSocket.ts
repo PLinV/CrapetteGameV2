@@ -24,7 +24,7 @@ type AdminAction = (typeof ADMIN_ACTIONS)[number];
 const rooms = new Map<string, GameRoom>();
 
 // Partie que ce joueur a quittée et peut encore reprendre (bouton « Reprendre » de l'accueil).
-export function findPausedGame(userId: number) {
+function findPausedGame(userId: number) {
   for (const [roomId, room] of rooms) {
     const paused = room.pausedGameOf(userId);
     if (paused) return { roomId, name: room.name, ...paused };
@@ -54,6 +54,9 @@ function allowPasswordAttempt(userId: number): boolean {
   return ++attempts.count <= MAX_PASSWORD_ATTEMPTS;
 }
 
+// Canal privé de chaque compte (tous ses onglets), pour le prévenir où qu'il soit sur le site.
+const userChannel = (userId: number) => `user:${userId}`;
+
 const isRoomId = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0 && value.length <= MAX_ROOM_ID_LENGTH;
 
@@ -80,13 +83,24 @@ export function setupGameSockets(io: Server) {
     if (at !== null) timers.set(roomId, setTimeout(callback, Math.max(0, at - Date.now()) + 100));
   };
 
+  // Prévient ces joueurs, où qu'ils soient sur le site, de l'état de leur partie en pause
+  // (bouton « Reprendre » de l'accueil : forfait, annulation, ou plus rien à reprendre).
+  const notifyPaused = (userIds: number[]) => {
+    for (const userId of userIds) io.to(userChannel(userId)).emit('paused_game', findPausedGame(userId));
+  };
+
   // À appeler après chaque arrivée ou départ d'un joueur.
   const armTimers = (roomId: string, room: GameRoom) => {
     setTimer(forfeitTimers, roomId, room.nextForfeitAt(), () => {
-      if (rooms.get(roomId) === room && room.applyForfeits()) sendState(roomId, room);
+      if (rooms.get(roomId) !== room || !room.applyForfeits()) return;
+      sendState(roomId, room);
+      notifyPaused(room.seatedUserIds());
     });
     setTimer(closeTimers, roomId, room.closesAt, () => {
-      if (rooms.get(roomId) === room && !room.hasConnections()) deleteRoom(roomId);
+      if (rooms.get(roomId) !== room || room.hasConnections()) return;
+      const userIds = room.seatedUserIds();
+      deleteRoom(roomId);
+      notifyPaused(userIds);
     });
   };
 
@@ -110,16 +124,18 @@ export function setupGameSockets(io: Server) {
     socket.leave(roomId);
     if (!room) return;
 
+    const userIds = room.seatedUserIds();
     room.leave(userId);
     if (room.isEmpty()) {
       deleteRoom(roomId);
-      return;
+    } else {
+      armTimers(roomId, room);
+      broadcastLobby();
+      // Partie en cours : l'adversaire voit le compte à rebours. Sinon, il attend un nouvel adversaire.
+      if (room.board) sendState(roomId, room);
+      else io.to(roomId).emit('waiting_for_opponent');
     }
-    armTimers(roomId, room);
-    broadcastLobby();
-    // Partie en cours : l'adversaire voit le compte à rebours. Sinon, il attend un nouvel adversaire.
-    if (room.board) sendState(roomId, room);
-    else io.to(roomId).emit('waiting_for_opponent');
+    notifyPaused(userIds);
   };
 
   // Seuls les joueurs connectés à un compte peuvent jouer : le compte (cookie d'auth) sert
@@ -140,6 +156,8 @@ export function setupGameSockets(io: Server) {
   });
 
   io.on('connection', (socket: Socket) => {
+    socket.join(userChannel(socket.data.userId));
+
     // Anti-flood : au-delà de MAX_EVENTS_PER_SECOND messages par seconde, les suivants sont ignorés.
     let windowStart = Date.now();
     let eventCount = 0;
@@ -162,6 +180,9 @@ export function setupGameSockets(io: Server) {
       if (!room || !board || board.winner || mySeat() !== board.activePlayer) return null;
       return { room, board };
     };
+
+    // Accueil : la partie en pause du joueur, puis ses changements en direct (voir notifyPaused).
+    socket.on('watch_paused', () => socket.emit('paused_game', findPausedGame(socket.data.userId)));
 
     // Menu « Jouer » : la liste des parties en attente, puis ses mises à jour en direct.
     socket.on('watch_lobby', () => {
@@ -234,6 +255,7 @@ export function setupGameSockets(io: Server) {
 
       armTimers(roomId, room);
       broadcastLobby();
+      notifyPaused(room.seatedUserIds()); // le retour d'un joueur change le compte à rebours de l'autre
       if (room.board) sendState(roomId, room); // l'adversaire voit aussi le retour du joueur
       else socket.emit('waiting_for_opponent');
     });

@@ -5,15 +5,11 @@ import { fetchWithAuth } from '../services/api';
 import { primaryButtonClass, secondaryButtonClass } from '../components/PageLayout';
 import ResetLinkGenerator from '../components/ResetLinkGenerator';
 import Avatar from '../components/Avatar';
-import Countdown from '../components/Countdown';
+import PausedGameBanner from '../components/PausedGameBanner';
 import CardFan from '../components/CardFan';
 
 type Me = { username: string; isAdmin: boolean; avatarUrl: string | null };
 type Summary = { games: number; wins: number; winRate: number; currentStreak: number };
-// Partie quittée en cours de route, à reprendre avant la défaite par forfait
-// (ou avant son annulation, si l'adversaire est parti aussi).
-type PausedGame = { roomId: string; name: string; deadline: number; ending: 'forfeit' | 'cancel' };
-
 const json = (res: Response) => (res.ok ? res.json() : null);
 
 const TILES = [
@@ -40,7 +36,6 @@ function StatItem({ label, value, highlight = false }: { label: string; value: s
 export default function Home() {
   const [me, setMe] = useState<Me | null>(null); // null = non connecté
   const [isLoading, setIsLoading] = useState(true);
-  const [pausedGame, setPausedGame] = useState<PausedGame | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [rank, setRank] = useState<{ rank: number; total: number } | null>(null);
 
@@ -52,12 +47,10 @@ export default function Home() {
         setIsLoading(false);
         if (!data) return;
         // Infos secondaires, chargées après l'affichage de la page.
-        const [paused, stats, leaderboard] = await Promise.all([
-          fetchWithAuth('/me/paused-game').then(json),
+        const [stats, leaderboard] = await Promise.all([
           fetchWithAuth('/stats').then(json),
           fetchWithAuth('/leaderboard').then(json),
         ]);
-        if (paused) setPausedGame({ roomId: paused.roomId, name: paused.name, deadline: Date.now() + paused.endsInMs, ending: paused.ending });
         if (stats) setSummary(stats.summary);
         const mine = leaderboard?.players.find((p: { username: string }) => p.username === data.username);
         if (mine) setRank({ rank: mine.rank, total: leaderboard.players.length });
@@ -71,7 +64,6 @@ export default function Home() {
   const handleLogout = async () => {
     await fetchWithAuth('/logout', { method: 'POST' });
     setMe(null);
-    setPausedGame(null);
     setSummary(null);
     setRank(null);
   };
@@ -126,30 +118,11 @@ export default function Home() {
           >
             Crapette
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-            className="mt-3 text-xs sm:text-sm md:text-base text-gray-400 uppercase tracking-[0.2em] sm:tracking-[0.3em]"
-          >
-            Le duel de cartes en tête-à-tête
-          </motion.p>
         </section>
 
         {me ? (
           <div className="w-full max-w-3xl flex flex-col items-center gap-8 mt-10">
-            {pausedGame && (
-              <Link
-                to={`/game/${encodeURIComponent(pausedGame.roomId)}`}
-                className="w-full max-w-md text-center p-4 rounded-2xl border-2 border-red-500/70 bg-red-950/50 hover:bg-red-900/50 transition-colors"
-              >
-                <span className="block text-lg font-black uppercase tracking-wider text-red-300 animate-pulse">Reprendre la partie</span>
-                <span className="block text-xs text-red-200/80 mt-1">
-                  « {pausedGame.name} » · {pausedGame.ending === 'forfeit' ? 'forfait' : 'partie annulée'} dans{' '}
-                  <Countdown deadline={pausedGame.deadline} />
-                </span>
-              </Link>
-            )}
+            <PausedGameBanner />
 
             <Link
               to="/matchmaking"
