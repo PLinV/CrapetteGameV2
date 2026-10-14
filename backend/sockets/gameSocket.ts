@@ -3,6 +3,7 @@ import { GameRoom } from '../game/GameRoom';
 import { PlayerNumber } from '../../constant/plateau';
 import { verifyAccessToken } from '../services/token';
 import { getUserById } from '../repositories/user_repositories';
+import { saveGame } from '../repositories/game_repositories';
 
 const MAX_ROOMS = 500;
 const MAX_ID_LENGTH = 64; // nom de table et jeton joueur
@@ -23,7 +24,12 @@ const readCookie = (header: string | undefined, name: string) =>
   header?.split('; ').find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
 
 export function setupGameSockets(io: Server) {
-  const sendState = (roomId: string, room: GameRoom) => io.to(roomId).emit('game_state', room.state());
+  // Envoie l'état aux deux joueurs, et enregistre la partie dans l'historique dès qu'elle est finie.
+  const sendState = (roomId: string, room: GameRoom) => {
+    const result = room.takeResult();
+    if (result) saveGame(result).catch((err) => console.error('[DB] Partie non enregistrée :', err));
+    io.to(roomId).emit('game_state', room.state());
+  };
 
   // Supprime la table plus tard si plus personne n'y est connecté.
   const scheduleCleanup = (roomId: string) => {
@@ -32,11 +38,12 @@ export function setupGameSockets(io: Server) {
     }, EMPTY_ROOM_TTL_MS);
   };
 
-  // À la connexion, on regarde si le joueur est connecté à un compte admin (cookie d'auth).
+  // À la connexion, on identifie le compte du joueur (cookie d'auth) : historique des parties et rôle admin.
   io.use(async (socket, next) => {
     const token = readCookie(socket.handshake.headers.cookie, 'access_token');
     const tokenUser = token ? verifyAccessToken(decodeURIComponent(token)) : null;
     const user = tokenUser ? await getUserById(tokenUser.id).catch(() => null) : null;
+    socket.data.userId = user?.id ?? null;
     socket.data.isAdmin = !!user?.isAdmin;
     next();
   });
@@ -77,7 +84,7 @@ export function setupGameSockets(io: Server) {
       const room = rooms.get(roomId) ?? new GameRoom();
       rooms.set(roomId, room);
 
-      const seat = room.join(token);
+      const seat = room.join(token, socket.data.userId);
       if (!seat) {
         socket.emit('room_error', 'La table est déjà pleine !');
         return;

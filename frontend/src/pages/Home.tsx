@@ -59,6 +59,8 @@ export default function Home() {
               Jouer
             </Link>
 
+            <Link to="/history" className={secondaryButtonClass}>Historique</Link>
+
             <button
               onClick={handleLogout}
               className="text-xs text-gray-600 hover:text-red-400 font-bold uppercase tracking-widest transition-colors cursor-pointer"

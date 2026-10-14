@@ -40,6 +40,7 @@ export default function Game() {
       {state?.winner && (
         <GameOverPopup
           won={state.winner === mySeat}
+          ranked={state.ranked}
           iAskedRematch={!!mySeat && state.rematchVotes.includes(mySeat)}
           opponentAskedRematch={state.rematchVotes.some((seat) => seat !== mySeat)}
           onPlayAgain={playAgain}

@@ -2,13 +2,14 @@ import { Suits, primaryButtonClass, secondaryButtonClass } from './PageLayout';
 
 type GameOverPopupProps = {
   won: boolean;
+  ranked: boolean;
   iAskedRematch: boolean;
   opponentAskedRematch: boolean;
   onPlayAgain: () => void;
   onLeave: () => void;
 };
 
-export default function GameOverPopup({ won, iAskedRematch, opponentAskedRematch, onPlayAgain, onLeave }: GameOverPopupProps) {
+export default function GameOverPopup({ won, ranked, iAskedRematch, opponentAskedRematch, onPlayAgain, onLeave }: GameOverPopupProps) {
   return (
     <div className="absolute inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center">
       <div className="relative w-full max-w-md mx-4 p-10 rounded-3xl bg-black/60 border border-[#d4af37]/40 shadow-[0_20px_60px_rgba(0,0,0,0.8)] text-center overflow-hidden">
@@ -34,6 +35,12 @@ export default function GameOverPopup({ won, iAskedRematch, opponentAskedRematch
             Menu principal
           </button>
         </div>
+
+        {!ranked && (
+          <p className="relative mt-5 text-xs text-gray-500">
+            Partie non comptée dans l'historique (un joueur n'est pas connecté, ou les deux places sont tenues par le même compte).
+          </p>
+        )}
 
         {opponentAskedRematch && !iAskedRematch && (
           <p className="relative mt-5 text-sm font-bold text-amber-400 animate-pulse">Votre adversaire veut une revanche !</p>

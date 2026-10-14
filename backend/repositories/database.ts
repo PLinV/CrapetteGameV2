@@ -34,6 +34,21 @@ export async function initDB() {
       expires_at TIMESTAMP NOT NULL
     );
 
+    -- historique des parties terminées (un compte supprimé laisse ses parties, sans nom)
+    CREATE TABLE IF NOT EXISTS games (
+      id SERIAL PRIMARY KEY,
+      winner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      loser_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      winner_crapettes INTEGER NOT NULL,
+      loser_crapettes INTEGER NOT NULL,
+      loser_cards_left INTEGER NOT NULL,
+      turns INTEGER NOT NULL,
+      started_at TIMESTAMPTZ NOT NULL,
+      ended_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS games_winner_idx ON games (winner_id);
+    CREATE INDEX IF NOT EXISTS games_loser_idx ON games (loser_id);
+
     -- pour les bases créées avant l'ajout de ces colonnes
     ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;

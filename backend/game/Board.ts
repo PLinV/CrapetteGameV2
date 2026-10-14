@@ -27,6 +27,11 @@ export class Board {
   private lastActionWasFoul = false;
   private piles = new Map<string, Pack>(ZONES_PLATEAU.map((zoneId) => [zoneId, new Pack()]));
 
+  // Statistiques de la partie, enregistrées dans l'historique à la fin.
+  public readonly startedAt = new Date();
+  public turns = 1;
+  public crapettes: Record<PlayerNumber, number> = { 1: 0, 2: 0 }; // Crapettes réussies par chaque joueur
+
   constructor() {
     this.deal(1, ZONES.centre.slice(0, 4), 'rouge');
     this.deal(2, ZONES.centre.slice(4), 'bleu');
@@ -150,6 +155,7 @@ export class Board {
   }
 
   public passTurn() {
+    this.turns++;
     this.activePlayer = this.opponent;
     this.canDraw = true;
     this.lastActionWasFoul = false;
@@ -166,6 +172,7 @@ export class Board {
   // L'adversaire crie « Crapette ! » : si la dernière action était une faute, le tour lui revient.
   public callCrapette(): boolean {
     if (this.winner || !this.lastActionWasFoul) return false;
+    this.crapettes[this.opponent]++;
     this.passTurn();
     return true;
   }
@@ -191,6 +198,12 @@ export class Board {
 
   public adminForceWin(player: PlayerNumber) {
     this.winner = player;
+  }
+
+  // Cartes qu'il reste au joueur (crapette, talon, défausse) : 0 pour le gagnant.
+  public cardsLeft(player: PlayerNumber): number {
+    const { crapette, talon, defausse } = playerZones(player);
+    return [crapette, talon, defausse].reduce((total, zoneId) => total + this.pile(zoneId).cartes.length, 0);
   }
 
   public selectableZones(): string[] {

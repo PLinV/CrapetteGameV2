@@ -25,6 +25,7 @@ type GameState = {
   selectableZones: string[];
   winner: Seat | null; // null tant que la partie continue
   rematchVotes: Seat[]; // joueurs qui ont demandé la revanche
+  ranked: boolean; // la partie compte pour l'historique (deux comptes différents)
 };
 
 // Jeton secret du joueur, conservé dans l'onglet pour retrouver sa place après un rechargement.
