@@ -1,6 +1,4 @@
-import { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import Card from './Card';
+import BoardCard from './BoardCard';
 import CardStack from './CardStack';
 import CrapetteButton from './CrapetteButton';
 import PlayerPlate from './PlayerPlate';
@@ -22,15 +20,6 @@ type BoardProps = {
   activeSeat: 1 | 2 | null;
   onPassTurn: () => void;
 };
-
-// Ressort sans rebond (amortissement critique : damping = 2 * √stiffness), utilisé à la fois pour le retour
-// de la carte lâchée et pour son déplacement vers sa nouvelle place : les deux mouvements s'additionnent
-// en une trajectoire droite, du point de lâcher jusqu'à la destination.
-const STIFFNESS = 400;
-const DAMPING = 40;
-const CARD_TRANSITION = { type: 'spring', stiffness: STIFFNESS, damping: DAMPING } as const;
-// Durée pendant laquelle la carte lâchée reste au premier plan, le temps d'arriver à sa place.
-const LANDING_MS = 400;
 
 // Zone (emplacement vide ou carte) sous le pointeur, en ignorant la carte qu'on déplace.
 const findZoneAt = (event: MouseEvent | TouchEvent | PointerEvent, draggedId: string) => {
@@ -71,17 +60,6 @@ export default function Board({
   // Chaque joueur voit ses propres cartes en bas de l'écran.
   const flipped = isPlayer1;
 
-  // Carte en main ou en train d'atterrir : elle passe au-dessus de toutes les autres.
-  const [liftedId, setLiftedId] = useState<string | null>(null);
-  const landingTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const lift = (id: string) => {
-    clearTimeout(landingTimer.current);
-    setLiftedId(id);
-  };
-  const land = () => {
-    landingTimer.current = setTimeout(() => setLiftedId(null), LANDING_MS);
-  };
-
   const topOrder: Record<string, number> = {};
   for (const carte of cartes) topOrder[carte.zoneId] = Math.max(topOrder[carte.zoneId] ?? -1, carte.zOrder);
 
@@ -101,46 +79,29 @@ export default function Board({
           const horizontal = isHorizontalZone(carte.zoneId);
           const placement = getGridPlacement(carte.zoneId, flipped);
 
-          const onDragEnd = (event: MouseEvent | TouchEvent | PointerEvent) => {
-            land();
+          // Renvoie true si un coup a été envoyé. Sinon la carte revient à sa place.
+          const onDrop = (event: MouseEvent | TouchEvent | PointerEvent) => {
             const to = findZoneAt(event, carte.id);
-            // Sinon la carte revient toute seule à sa place.
-            if (to && to !== carte.zoneId) onMove(carte.zoneId, to);
+            if (!to || to === carte.zoneId) return false;
+            onMove(carte.zoneId, to);
+            return true;
           };
 
           return (
-            <div
+            <BoardCard
               key={carte.id}
+              carte={carte}
+              horizontal={horizontal}
+              draggable={isDraggable}
+              canDraw={canDraw}
               style={{
                 ...placement,
-                zIndex: carte.id === liftedId ? 1000 : carte.zOrder,
+                zIndex: carte.zOrder,
                 transform: `translateY(${carte.zOrder * stackOffset(carte.zoneId, placement.gridRow)}px)`,
               }}
-            >
-              <motion.div
-                layout
-                data-zone={carte.zoneId}
-                data-card-id={carte.id}
-                drag={isDraggable}
-                dragMomentum={false}
-                dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
-                dragElastic={1}
-                dragTransition={{ bounceStiffness: STIFFNESS, bounceDamping: DAMPING }}
-                animate={{ x: 0, y: 0, rotate: horizontal ? 90 : 0, scale: 1 }}
-                transition={CARD_TRANSITION}
-                whileDrag={{ scale: 1.05, rotate: 0 }}
-                onDragStart={() => lift(carte.id)}
-                onDragEnd={onDragEnd}
-                onPointerDown={(e) => {
-                  if (canDraw && e.button === 0) onDraw();
-                }}
-                className={`flex justify-center items-center ${horizontal ? 'w-[160px] h-[110px]' : 'w-[110px] h-[160px]'} ${
-                  isDraggable ? 'cursor-grab active:cursor-grabbing' : canDraw ? 'cursor-pointer' : 'cursor-default'
-                }`}
-              >
-                <Card val={carte.val} symbole={carte.symbole} isFaceDown={carte.isFaceDown} dosCouleur={carte.dosCouleur} />
-              </motion.div>
-            </div>
+              onDraw={onDraw}
+              onDrop={onDrop}
+            />
           );
         })}
 

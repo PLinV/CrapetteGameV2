@@ -23,3 +23,6 @@ export const stackOffset = (zoneId: string, gridRow: number) => {
   if (!zoneId.startsWith('3')) return 0;
   return gridRow === 3 ? -50 : 50;
 };
+
+// Mouvement des cartes : glissement fluide qui ralentit à l'arrivée, sans rebond.
+export const CARD_TRANSITION = { type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.35 } as const;

@@ -22,8 +22,8 @@ export default function CardFan() {
           initial={{ rotate: 0, x: 0, y: 40, opacity: 0 }}
           animate={{ rotate: card.angle, x: card.x, y: [0, -8, 0], opacity: 1 }}
           transition={{
-            rotate: { type: 'spring', stiffness: 120, damping: 14, delay: 0.15 + i * 0.07 },
-            x: { type: 'spring', stiffness: 120, damping: 14, delay: 0.15 + i * 0.07 },
+            rotate: { duration: 0.6, ease: 'easeOut', delay: 0.15 + i * 0.07 },
+            x: { duration: 0.6, ease: 'easeOut', delay: 0.15 + i * 0.07 },
             opacity: { duration: 0.3, delay: i * 0.07 },
             y: { duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 + i * 0.3 },
           }}
