@@ -20,6 +20,7 @@ type BoardProps = {
   players: (PlayerInfo | null)[];
   activeSeat: 1 | 2 | null;
   onPassTurn: () => void;
+  onBlockedMove: () => void; // le joueur touche une autre carte alors qu'il doit jouer sa carte piochée
   menu?: ReactNode; // affiché dans le coin en haut à droite du plateau
 };
 
@@ -34,7 +35,7 @@ const findZoneAt = (event: MouseEvent | TouchEvent | PointerEvent, draggedId: st
 };
 
 export default function Board({
-  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onMove, canCallCrapette, onCrapette, players, activeSeat, onPassTurn, menu,
+  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onMove, canCallCrapette, onCrapette, players, activeSeat, onPassTurn, onBlockedMove, menu,
 }: BoardProps) {
   const mySeat = isPlayer1 ? 1 : 2;
   const opponentSeat = isPlayer1 ? 2 : 1;
@@ -58,7 +59,17 @@ export default function Board({
     />
   );
 
-  const myTalon = isPlayer1 ? ZONES.joueur1.talon : ZONES.joueur2.talon;
+  const mine = isPlayer1 ? ZONES.joueur1 : ZONES.joueur2;
+  const theirs = isPlayer1 ? ZONES.joueur2 : ZONES.joueur1;
+  const myTalon = mine.talon;
+  // Carte piochée : retournée sur le talon, elle doit être jouée avant toute autre.
+  const myTalonTop = cartes.reduce<CarteData | null>(
+    (top, carte) => (carte.zoneId === myTalon && (!top || carte.zOrder > top.zOrder) ? carte : top),
+    null,
+  );
+  const hasDrawnCard = !!myTalonTop && !myTalonTop.isFaceDown;
+  // Zones qu'on pourrait jouer sans la carte piochée : y toucher une carte affiche un rappel.
+  const blockedZones: string[] = [...ZONES.centre, mine.crapette, mine.defausse, theirs.crapette, theirs.defausse];
   // Chaque joueur voit ses propres cartes en bas de l'écran.
   const flipped = isPlayer1;
 
@@ -77,7 +88,8 @@ export default function Board({
         {cartes.map((carte) => {
           const isTopCard = carte.zOrder === topOrder[carte.zoneId];
           const isDraggable = isMyTurn && isTopCard && !carte.isFaceDown && selectableZones.includes(carte.zoneId);
-          const canDraw = isMyTurn && isTopCard && carte.zoneId === myTalon;
+          const canDraw = isMyTurn && isTopCard && carte.isFaceDown && carte.zoneId === myTalon;
+          const isBlocked = isMyTurn && hasDrawnCard && isTopCard && !carte.isFaceDown && blockedZones.includes(carte.zoneId);
           const horizontal = isHorizontalZone(carte.zoneId);
           const placement = getGridPlacement(carte.zoneId, flipped);
 
@@ -96,6 +108,7 @@ export default function Board({
               horizontal={horizontal}
               draggable={isDraggable}
               canDraw={canDraw}
+              onBlocked={isBlocked ? onBlockedMove : undefined}
               style={{
                 ...placement,
                 zIndex: carte.zOrder,

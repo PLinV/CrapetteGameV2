@@ -35,7 +35,7 @@ export default function Game() {
   const navigate = useNavigate();
   const {
     connectionLost, room, passwordPrompt, submitPassword, state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
-    draw, move, passTurn, callCrapette, playAgain, adminAction, leave, chat, sendChat,
+    draw, move, passTurn, callCrapette, playAgain, adminAction, leave, chat, sendChat, warn,
   } = useGame(roomId);
   const isOver = !!state?.winner;
 
@@ -93,7 +93,7 @@ export default function Game() {
       {message && (
         <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-2xl border-2 backdrop-blur-md animate-bounce pointer-events-none text-center min-w-[300px] ${MESSAGE_STYLES[message.kind]}`}>
           <p className="font-black tracking-widest uppercase text-lg drop-shadow-md">
-            {message.kind === 'crapette' ? '🚨' : '⚠️'} {message.text}
+            {message.text}
           </p>
         </div>
       )}
@@ -114,6 +114,7 @@ export default function Game() {
               players={state?.players ?? []}
               activeSeat={isOver ? null : state?.turn ?? null}
               onPassTurn={passTurn}
+              onBlockedMove={() => warn("Jouez d'abord la carte piochée, ou posez-la sur votre défausse.")}
               menu={<GameMenu room={room} onLeave={handleLeave} />}
             />
           </div>

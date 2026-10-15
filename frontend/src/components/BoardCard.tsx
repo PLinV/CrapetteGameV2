@@ -15,6 +15,7 @@ type BoardCardProps = {
   horizontal: boolean; // fondations : carte couchée
   draggable: boolean;
   canDraw: boolean;
+  onBlocked?: () => void; // carte qu'on ne peut pas jouer pour l'instant : au clic, on prévient le joueur
   style: CSSProperties; // placement dans la grille du plateau
   onDraw: () => void;
   // Appelé au lâcher : renvoie true si un coup a été envoyé au serveur.
@@ -24,7 +25,7 @@ type BoardCardProps = {
 // Carte du plateau. Lâchée sur une autre zone, elle reste où on l'a posée jusqu'à la réponse du serveur :
 // si le coup est accepté, elle glisse de là jusqu'à sa nouvelle place (le décalage x/y revient à 0 pendant
 // que l'animation `layout` la déplace d'une place à l'autre, d'où une trajectoire droite) ; sinon elle revient.
-export default function BoardCard({ carte, horizontal, draggable, canDraw, style, onDraw, onDrop }: BoardCardProps) {
+export default function BoardCard({ carte, horizontal, draggable, canDraw, onBlocked, style, onDraw, onDrop }: BoardCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const dragging = useRef(false);
@@ -97,7 +98,9 @@ export default function BoardCard({ carte, horizontal, draggable, canDraw, style
           else settle();
         }}
         onPointerDown={(e: ReactPointerEvent) => {
-          if (canDraw && e.button === 0) onDraw();
+          if (e.button !== 0) return;
+          if (canDraw) onDraw();
+          else onBlocked?.();
         }}
         className={`flex justify-center items-center ${horizontal ? 'w-[160px] h-[110px]' : 'w-[110px] h-[160px]'} ${
           draggable ? 'cursor-grab active:cursor-grabbing' : canDraw ? 'cursor-pointer' : 'cursor-default'

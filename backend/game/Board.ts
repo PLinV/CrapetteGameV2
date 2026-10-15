@@ -26,8 +26,6 @@ export class Board {
   public winner: PlayerNumber | null = null;
   // Vrai si la partie a été gagnée parce que l'adversaire n'est pas revenu à temps.
   public wonByForfeit = false;
-  // Après une pioche, il faut jouer la carte de sa défausse avant de pouvoir repiocher.
-  private canDraw = true;
   // Coups qu'il reste au joueur actif avant que sa dernière faute soit oubliée (0 : pas de faute à sanctionner).
   private foulMovesLeft = 0;
   private piles = new Map<string, Pack>(ZONES_PLATEAU.map((zoneId) => [zoneId, new Pack()]));
@@ -85,6 +83,8 @@ export class Board {
     const mine = playerZones(this.activePlayer);
     const theirs = playerZones(this.opponent);
 
+    // Carte piochée (retournée sur le talon) : on ne peut jouer qu'elle. Sinon le talon ne se joue pas.
+    if (this.hasDrawnCard()) return zoneId === mine.talon;
     if (zoneId === mine.defausse) return !this.crapetteHasMove(); // la crapette est prioritaire
     return isCentre(zoneId) || zoneId === mine.crapette || zoneId === theirs.defausse || zoneId === theirs.crapette;
   }
@@ -92,6 +92,7 @@ export class Board {
   public canPlace(card: Card, from: string, to: string): boolean {
     if (from === to || !this.piles.has(to)) return false;
     const target = this.pile(to).top();
+    const mine = playerZones(this.activePlayer);
     const theirs = playerZones(this.opponent);
 
     // Fondations : As sur une place vide, puis +1 de la même couleur (enseigne).
@@ -101,6 +102,9 @@ export class Board {
 
     // Une carte prise à l'adversaire doit obligatoirement monter aux fondations.
     if (from === theirs.defausse || from === theirs.crapette) return false;
+
+    // Sa propre défausse ne reçoit que la carte piochée qu'on n'a pas pu jouer.
+    if (to === mine.defausse) return from === mine.talon;
 
     // Centre : n'importe quelle carte sur une place vide, sinon -1 en alternant rouge/noir.
     if (isCentre(to)) {
@@ -128,11 +132,14 @@ export class Board {
 
     this.recordAction(!isFondation(to) && this.canGoUp());
     this.pile(to).add(this.pile(from).take()!);
-    const newTop = this.pile(from).top();
-    if (newTop) newTop.isFaceDown = false; // retourne la carte suivante de la crapette
-    // On ne peut repiocher qu'après avoir joué la carte piochée, posée sur la défausse.
-    if (from === playerZones(this.activePlayer).defausse) this.canDraw = true;
+    // Retourne la carte suivante d'une crapette. Celle du talon reste cachée jusqu'à la prochaine pioche.
+    if (from !== playerZones(this.activePlayer).talon) {
+      const next = this.pile(from).top();
+      if (next) next.isFaceDown = false;
+    }
     this.checkWinner();
+    // Carte piochée posée sur sa défausse : elle n'a pas pu être jouée, le tour passe.
+    if (to === playerZones(this.activePlayer).defausse && !this.winner) this.passTurn();
     return true;
   }
 
@@ -148,22 +155,35 @@ export class Board {
     }
   }
 
-  // Retourne la carte du talon sur la défausse.
+  // Pioche : retourne la carte du dessus du talon. Elle doit être jouée (ou défaussée) avant toute autre carte,
+  // et on ne peut pas en retourner une autre tant qu'elle est là.
   public draw(): boolean {
-    const { talon, defausse } = playerZones(this.activePlayer);
-    if (this.winner || !this.canDraw || this.pile(talon).isEmpty()) return false;
+    const top = this.pile(playerZones(this.activePlayer).talon).top();
+    if (this.winner || !top || !top.isFaceDown) return false;
 
     this.recordAction(this.canGoUp());
-    this.pile(defausse).add(this.pile(talon).take()!);
-    this.canDraw = false;
+    top.isFaceDown = false;
     return true;
   }
 
+  // Vrai si le joueur actif a retourné une carte de son talon sans l'avoir encore jouée.
+  public hasDrawnCard(): boolean {
+    const top = this.pile(playerZones(this.activePlayer).talon).top();
+    return !!top && !top.isFaceDown;
+  }
+
+  // Fin du tour : une carte piochée et pas jouée va sur la défausse.
   public passTurn() {
+    this.discardHand();
     this.turns++;
     this.activePlayer = this.opponent;
-    this.canDraw = true;
     this.foulMovesLeft = 0; // passer son tour efface la faute
+  }
+
+  private discardHand() {
+    if (!this.hasDrawnCard()) return;
+    const { talon, defausse } = playerZones(this.activePlayer);
+    this.pile(defausse).add(this.pile(talon).take()!);
   }
 
   // Une faute reste sanctionnable pendant les FOUL_MEMORY coups (déplacement ou pioche) qui la suivent,
@@ -210,8 +230,8 @@ export class Board {
   }
 
   public adminGiveTurn(player: PlayerNumber) {
+    this.discardHand();
     this.activePlayer = player;
-    this.canDraw = true;
     this.foulMovesLeft = 0;
   }
 
