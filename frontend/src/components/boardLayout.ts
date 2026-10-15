@@ -18,4 +18,8 @@ export const getGridPlacement = (zoneId: string, flipped: boolean) => {
 export const isHorizontalZone = (zoneId: string) => zoneId.startsWith('4') || zoneId.startsWith('5');
 
 // Décalage vertical entre les cartes empilées au centre : vers le haut pour la rangée du haut, vers le bas pour l'autre.
-export const stackOffset = (gridRow: number) => (gridRow === 3 ? -50 : gridRow === 4 ? 50 : 0);
+// Les autres piles (fondations, crapette, talon, défausse) sont empilées sans décalage.
+export const stackOffset = (zoneId: string, gridRow: number) => {
+  if (!zoneId.startsWith('3')) return 0;
+  return gridRow === 3 ? -50 : 50;
+};

@@ -114,7 +114,7 @@ export default function Board({
               style={{
                 ...placement,
                 zIndex: carte.id === liftedId ? 1000 : carte.zOrder,
-                transform: `translateY(${carte.zOrder * stackOffset(placement.gridRow)}px)`,
+                transform: `translateY(${carte.zOrder * stackOffset(carte.zoneId, placement.gridRow)}px)`,
               }}
             >
               <motion.div
