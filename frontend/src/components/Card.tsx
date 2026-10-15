@@ -19,6 +19,9 @@ const FIGURES: Record<string, Record<number, typeof Hk>> = {
 };
 // Cadre du portrait dans le SVG d'origine : on masque ses coins aux lettres anglaises (J/Q/K).
 const PORTRAIT_VIEWBOX = '-83 -131 166 262';
+// Le portrait a aussi son propre symbole d'enseigne dans deux coins (seuls éléments de cette taille) :
+// masqué, pour ne garder que les deux symboles des coins de la carte.
+const HIDE_PORTRAIT_SUITS = "[&_use[height='55.68']]:hidden";
 
 // Position des symboles pour les cartes 2 à 10 : [x, y] en fraction de la zone centrale.
 const PIPS: Record<number, [number, number][]> = {
@@ -37,20 +40,20 @@ function CardCenter({ val, symbole, sym }: { val: number; symbole: string; sym: 
   const Figure = FIGURES[symbole]?.[val];
   if (Figure) {
     return (
-      <div className="absolute inset-y-[6px] inset-x-[17px]">
+      <div className={`absolute inset-y-[6px] inset-x-[22px] ${HIDE_PORTRAIT_SUITS}`}>
         <Figure viewBox={PORTRAIT_VIEWBOX} width="100%" height="100%" />
       </div>
     );
   }
 
-  if (val === 1) return <div className="absolute inset-0 flex items-center justify-center text-7xl">{sym}</div>;
+  if (val === 1) return <div className="absolute inset-0 flex items-center justify-center text-[96px] leading-none">{sym}</div>;
 
   return (
-    <div className="absolute inset-y-[19px] inset-x-[28px]">
+    <div className="absolute inset-y-[28px] inset-x-[35px]">
       {PIPS[val]?.map(([x, y], i) => (
         <span
           key={i}
-          className="absolute text-[25px] leading-none"
+          className="absolute text-[28px] leading-none"
           // Comme sur un vrai jeu, les symboles de la moitié basse sont retournés.
           style={{ left: `${x * 100}%`, top: `${y * 100}%`, transform: `translate(-50%, -50%)${y > 0.5 ? ' rotate(180deg)' : ''}` }}
         >
@@ -66,15 +69,17 @@ export default function Card({ val, symbole = '', isFaceDown, dosCouleur }: Card
   const textColor = symbole === 'Heart' || symbole === 'Diamond' ? 'text-red-600' : 'text-slate-900';
   const backColor = dosCouleur === 'rouge' ? 'bg-red-800' : 'bg-blue-800';
 
+  // Indices des coins en gros, lisibles même quand les cartes se chevauchent. Le « 10 » est resserré
+  // pour ne pas toucher les symboles du centre.
   const corner = (position: string) => (
     <div className={`absolute ${position} flex flex-col items-center font-bold leading-none`}>
-      <span className="text-[17px] tracking-tighter">{val ? (INDICES[val] ?? val) : ''}</span>
-      <span className="text-[16px]">{sym}</span>
+      <span className={`text-[28px] font-black ${val === 10 ? 'tracking-[-0.12em] -ml-[0.12em]' : ''}`}>{val ? (INDICES[val] ?? val) : ''}</span>
+      <span className="text-[30px] -mt-1.5">{sym}</span>
     </div>
   );
 
   return (
-    <div className="w-[95px] h-[140px] select-none touch-none rounded-lg [perspective:1000px] shadow-[2px_5px_10px_rgba(0,0,0,0.4)] pointer-events-auto">
+    <div className="w-[104px] h-[152px] select-none touch-none rounded-lg [perspective:1000px] shadow-[2px_5px_10px_rgba(0,0,0,0.4)] pointer-events-auto">
       <div
         className={`relative w-full h-full rounded-lg transition-transform duration-500 ease-in-out [transform-style:preserve-3d] shadow-md ${
           isFaceDown ? '[transform:rotateY(180deg)]' : '[transform:rotateY(0deg)]'
@@ -82,16 +87,16 @@ export default function Card({ val, symbole = '', isFaceDown, dosCouleur }: Card
       >
         {/* face avant */}
         <div className={`absolute inset-0 bg-gradient-to-br from-white to-gray-100 border border-gray-300 rounded-lg [backface-visibility:hidden] ${textColor}`}>
-          {corner('top-1 left-1')}
+          {corner('top-1 left-[3px]')}
           {val && <CardCenter val={val} symbole={symbole} sym={sym} />}
-          {corner('bottom-1 right-1 rotate-180')}
+          {corner('bottom-1 right-[3px] rotate-180')}
         </div>
 
         {/* dos */}
         <div
           className={`absolute inset-0 border-4 border-white ${backColor} bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(255,255,255,0.2)_4px,rgba(255,255,255,0.2)_8px)] rounded-lg [backface-visibility:hidden] [transform:rotateY(180deg)] flex justify-center items-center`}
         >
-          <div className="w-[75px] h-[120px] border-2 border-white/40 rounded-md" />
+          <div className="absolute inset-[6px] border-2 border-white/40 rounded-md" />
         </div>
       </div>
     </div>
