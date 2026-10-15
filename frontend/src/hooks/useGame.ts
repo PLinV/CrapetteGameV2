@@ -14,7 +14,7 @@ export type CarteData = {
   symbole?: string;
 };
 
-export type AdminAction = 'nearly_win' | 'give_turn' | 'force_win' | 'new_game';
+export type AdminAction = 'nearly_win' | 'give_turn' | 'empty_talon' | 'force_win' | 'new_game';
 
 type Message = { text: string; kind: 'error' | 'crapette' };
 
@@ -135,6 +135,7 @@ export function useGame(roomId: string) {
     isMyTurn: !!state && state.turn === mySeat,
     isPlayer1: mySeat === 1,
     draw: () => socket.emit('draw_card'),
+    recycle: () => socket.emit('recycle_talon'),
     move: (from: string, to: string) => socket.emit('move_card', { from, to }),
     passTurn: () => socket.emit('pass_turn'),
     callCrapette: () => socket.emit('call_crapette'),

@@ -8,6 +8,7 @@ type AdminPanelProps = {
 const ROWS: { action: AdminAction; label: string }[] = [
   { action: 'nearly_win', label: 'À un coup de gagner' },
   { action: 'give_turn', label: 'Donner la main' },
+  { action: 'empty_talon', label: 'Vider la pioche' },
   { action: 'force_win', label: 'Faire gagner' },
 ];
 
