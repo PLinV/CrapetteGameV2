@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import BoardCard from './BoardCard';
 import CardStack from './CardStack';
 import CrapetteButton from './CrapetteButton';
@@ -19,6 +20,7 @@ type BoardProps = {
   players: (PlayerInfo | null)[];
   activeSeat: 1 | 2 | null;
   onPassTurn: () => void;
+  menu?: ReactNode; // affiché dans le coin en haut à droite du plateau
 };
 
 // Zone (emplacement vide ou carte) sous le pointeur, en ignorant la carte qu'on déplace.
@@ -32,7 +34,7 @@ const findZoneAt = (event: MouseEvent | TouchEvent | PointerEvent, draggedId: st
 };
 
 export default function Board({
-  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onMove, canCallCrapette, onCrapette, players, activeSeat, onPassTurn,
+  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onMove, canCallCrapette, onCrapette, players, activeSeat, onPassTurn, menu,
 }: BoardProps) {
   const mySeat = isPlayer1 ? 1 : 2;
   const opponentSeat = isPlayer1 ? 2 : 1;
@@ -108,6 +110,9 @@ export default function Board({
         {/* Plaques des joueurs dans le coin gauche de leur rangée : l'adversaire en haut, soi en bas. */}
         {plate(opponentSeat, 1)}
         {plate(mySeat, 6)}
+
+        {/* Coin en haut à droite : nom de la table et menu. */}
+        {menu && <div style={{ gridColumn: '22 / span 6', gridRow: 1, placeSelf: 'center', width: '100%' }}>{menu}</div>}
 
         {/* Le bouton est dans le coin droit de la rangée du joueur, en bas. */}
         <CrapetteButton

@@ -19,7 +19,7 @@ export default function AdminPanel({ onAction }: AdminPanelProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="absolute top-20 left-8 z-[95] flex flex-col items-start gap-2">
+    <div className="absolute top-4 left-4 z-[95] flex flex-col items-start gap-2">
       <button
         onClick={() => setOpen(!open)}
         className="px-3 py-1.5 rounded-full bg-purple-900/80 border border-purple-500/60 text-xs font-black uppercase tracking-widest text-purple-200 hover:bg-purple-800 cursor-pointer"
