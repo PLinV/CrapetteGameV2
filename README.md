@@ -319,15 +319,6 @@ ses autres sessions sont fermées.
 En partie, un admin voit un panneau « 🛠 Admin » : mettre un joueur à un coup de la victoire, donner la main,
 faire gagner un joueur, redistribuer une nouvelle partie. Les parties gagnées ainsi comptent dans l'historique.
 
-### Page privée
-
-La page `/pour-anna` (bouton 😉❤️ sur l'accueil) n'est visible que par les comptes `Anna`, `Paulin` et les admins.
-Le contenu est envoyé par le serveur seulement à ces comptes. La liste et le message sont dans
-`backend/controllers/forAnna.ts`.
-
-La page est liée au **pseudo** : n'importe qui créant un compte `Anna` y aurait accès. Il faut donc créer ce compte
-en premier sur une nouvelle installation.
-
 ### Nettoyage automatique
 
 Chaque nuit à 3 h, le serveur supprime les jetons de connexion et liens de réinitialisation expirés.
