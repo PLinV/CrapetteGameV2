@@ -62,6 +62,8 @@ export async function initDB() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
     -- partie gagnée parce que l'adversaire n'est pas revenu à temps
     ALTER TABLE games ADD COLUMN IF NOT EXISTS forfeit BOOLEAN NOT NULL DEFAULT false;
+    -- match nul accepté par les deux joueurs (winner_id / loser_id sont alors juste les joueurs 1 et 2)
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS draw BOOLEAN NOT NULL DEFAULT false;
   `);
   console.log('[DB] tables prêtes');
 }

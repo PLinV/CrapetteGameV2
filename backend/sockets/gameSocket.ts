@@ -186,7 +186,7 @@ export function setupGameSockets(io: Server) {
     const myTurnBoard = () => {
       const room = myRoom();
       const board = room?.board;
-      if (!room || !board || board.winner || mySeat() !== board.activePlayer) return null;
+      if (!room || !board || board.isOver || mySeat() !== board.activePlayer) return null;
       return { room, board };
     };
 
@@ -341,6 +341,29 @@ export function setupGameSockets(io: Server) {
       if (result === 'refused') socket.emit('action_error', 'Pas de faute : la Crapette est refusée.');
       else io.to(socket.data.roomId).emit('crapette_called', caller);
       sendState(socket.data.roomId, room); // le délai du bouton s'affiche chez les deux joueurs
+    });
+
+    // Match nul : proposé par un joueur, accepté ou refusé par l'autre (à tout moment de la partie).
+    socket.on('offer_draw', () => {
+      const room = myRoom();
+      if (!room) return;
+      const result = room.offerDraw(socket.data.userId);
+      if (result === 'cooldown') {
+        const seconds = Math.ceil(room.drawCooldownMs(socket.data.userId) / 1000);
+        socket.emit('action_error', `Votre adversaire a refusé : attendez encore ${seconds} s avant de reproposer le nul.`);
+        return;
+      }
+      if (result !== 'invalid') sendState(socket.data.roomId, room);
+    });
+
+    socket.on('answer_draw', (accept: unknown) => {
+      const room = myRoom();
+      if (room?.answerDraw(socket.data.userId, accept === true)) sendState(socket.data.roomId, room);
+    });
+
+    socket.on('cancel_draw', () => {
+      const room = myRoom();
+      if (room?.cancelDrawOffer(socket.data.userId)) sendState(socket.data.roomId, room);
     });
 
     socket.on('play_again', () => {

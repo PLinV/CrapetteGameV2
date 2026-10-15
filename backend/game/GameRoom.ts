@@ -12,7 +12,12 @@ export type GameResult = {
   turns: number;
   startedAt: Date;
   forfeit: boolean;
+  draw: boolean; // match nul : winnerId / loserId sont alors simplement les joueurs 1 et 2
 };
+
+// Après un refus, celui qui a proposé le nul attend ce délai avant de le reproposer.
+export const DRAW_OFFER_COOLDOWN_MS = 30_000;
+export type DrawOfferResult = 'offered' | 'accepted' | 'cooldown' | 'invalid';
 
 // Message du chat de la table. `seat` : numéro du joueur qui l'a écrit.
 export type ChatMessage = { id: number; seat: PlayerNumber; username: string; text: string; at: number };
@@ -50,6 +55,10 @@ export class GameRoom {
   public board: Board | null = null;
   // Comptes qui veulent rejouer après la fin de la partie.
   private rematchVotes = new Set<number>();
+  // Proposition de match nul en attente de réponse : compte qui l'a faite, ou null.
+  private drawOfferBy: number | null = null;
+  // Heure (ms) du dernier refus essuyé par chaque compte (délai avant de reproposer).
+  private drawRefusedAt = new Map<number, number>();
   // Chat de la table : gardé en mémoire tant que les deux mêmes joueurs y sont assis.
   private chat: ChatMessage[] = [];
   private nextChatId = 1;
@@ -131,7 +140,7 @@ export class GameRoom {
   }
 
   private isPlaying(): boolean {
-    return !!this.board && !this.board.winner;
+    return !!this.board && !this.board.isOver;
   }
 
   // Démarre le compte à rebours d'un joueur absent pendant une partie, si son adversaire est là.
@@ -153,7 +162,7 @@ export class GameRoom {
   // Un joueur absent depuis trop longtemps perd (son adversaire est forcément là, voir updateForfeits).
   public applyForfeits(now = Date.now()): boolean {
     const board = this.board;
-    if (!board || board.winner) return false;
+    if (!board || board.isOver) return false;
     const seat = this.forfeitAt.findIndex((at, i) => at !== null && at <= now && this.connections[1 - i] > 0);
     if (seat === -1) return false;
     board.forfeit((seat + 1) as PlayerNumber);
@@ -163,7 +172,7 @@ export class GameRoom {
 
   // Une nouvelle partie démarre quand les deux joueurs ont demandé la revanche.
   public voteRematch(userId: number): boolean {
-    if (!this.board?.winner || !this.playerNumber(userId)) return false;
+    if (!this.board?.isOver || !this.playerNumber(userId)) return false;
     this.rematchVotes.add(userId);
     if (this.rematchVotes.size === 2) this.newGame();
     return true;
@@ -172,6 +181,8 @@ export class GameRoom {
   public newGame(now = Date.now()) {
     this.board = new Board();
     this.rematchVotes.clear();
+    this.drawOfferBy = null;
+    this.drawRefusedAt.clear();
     this.resultTaken = false;
     this.forfeitAt = [null, null];
     this.updateForfeits(now);
@@ -182,10 +193,10 @@ export class GameRoom {
   public takeResult(): GameResult | null {
     const board = this.board;
     const [account1, account2] = this.accounts;
-    if (!board?.winner || this.resultTaken || !account1 || !account2) return null;
+    if (!board?.isOver || this.resultTaken || !account1 || !account2) return null;
     this.resultTaken = true;
 
-    const winner = board.winner;
+    const winner = board.winner ?? 1; // match nul : le joueur 1 est rangé en « gagnant », sans effet sur les stats
     const loser: PlayerNumber = winner === 1 ? 2 : 1;
     return {
       winnerId: this.accounts[winner - 1]!.id,
@@ -196,7 +207,40 @@ export class GameRoom {
       turns: board.turns,
       startedAt: board.startedAt,
       forfeit: board.wonByForfeit,
+      draw: board.isDraw,
     };
+  }
+
+  // Temps (ms) avant que ce compte puisse de nouveau proposer le nul.
+  public drawCooldownMs(userId: number, now = Date.now()): number {
+    const refusedAt = this.drawRefusedAt.get(userId);
+    return refusedAt === undefined ? 0 : Math.max(0, refusedAt + DRAW_OFFER_COOLDOWN_MS - now);
+  }
+
+  // Un joueur propose le match nul. Si son adversaire l'avait déjà proposé, c'est un accord : la partie est nulle.
+  public offerDraw(userId: number, now = Date.now()): DrawOfferResult {
+    if (!this.isPlaying() || !this.playerNumber(userId) || this.drawOfferBy === userId) return 'invalid';
+    if (this.drawOfferBy !== null) return this.answerDraw(userId, true) ? 'accepted' : 'invalid';
+    if (this.drawCooldownMs(userId, now) > 0) return 'cooldown';
+    this.drawOfferBy = userId;
+    return 'offered';
+  }
+
+  // L'adversaire de celui qui a proposé accepte (partie nulle) ou refuse (délai avant une nouvelle proposition).
+  public answerDraw(userId: number, accept: boolean, now = Date.now()): boolean {
+    const by = this.drawOfferBy;
+    if (by === null || by === userId || !this.playerNumber(userId) || !this.isPlaying()) return false;
+    this.drawOfferBy = null;
+    if (accept) this.board!.endInDraw();
+    else this.drawRefusedAt.set(by, now);
+    return true;
+  }
+
+  // Celui qui a proposé le nul retire sa proposition.
+  public cancelDrawOffer(userId: number): boolean {
+    if (this.drawOfferBy !== userId) return false;
+    this.drawOfferBy = null;
+    return true;
   }
 
   // Ajoute un message écrit par un joueur assis à la table (texte déjà vérifié), ou renvoie null.
@@ -250,6 +294,9 @@ export class GameRoom {
       selectableZones: this.board?.selectableZones() ?? [],
       winner: this.board?.winner ?? null,
       wonByForfeit: this.board?.wonByForfeit ?? false,
+      draw: this.board?.isDraw ?? false,
+      // numéro du joueur qui propose le match nul, en attente de réponse
+      drawOfferBy: this.isPlaying() && this.drawOfferBy !== null ? this.playerNumber(this.drawOfferBy) : null,
       rematchVotes: [...this.rematchVotes].map((userId) => this.playerNumber(userId)),
       // par numéro de joueur ; forfeitInMs : temps qu'il reste à un joueur absent pour revenir
       players: this.accounts.map((account, i) => {
@@ -262,6 +309,8 @@ export class GameRoom {
           forfeitInMs: at === null ? null : Math.max(0, at - now),
           // temps avant de pouvoir crier de nouveau « Crapette ! »
           crapetteCooldownMs: this.board?.crapetteCooldownMs((i + 1) as PlayerNumber, now) ?? 0,
+          // temps avant de pouvoir reproposer le nul après un refus
+          drawCooldownMs: this.drawCooldownMs(account.id, now),
         };
       }),
     };

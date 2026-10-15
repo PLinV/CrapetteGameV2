@@ -30,6 +30,8 @@ export class Board {
   public winner: PlayerNumber | null = null;
   // Vrai si la partie a été gagnée parce que l'adversaire n'est pas revenu à temps.
   public wonByForfeit = false;
+  // Vrai si les deux joueurs se sont mis d'accord sur un match nul.
+  public isDraw = false;
   // Coups qu'il reste au joueur actif avant que sa dernière faute soit oubliée (0 : pas de faute à sanctionner).
   private foulMovesLeft = 0;
   // Heure (ms) du dernier « Crapette ! » de chaque joueur.
@@ -85,7 +87,7 @@ export class Board {
 
   // Zones dont le joueur actif peut prendre la carte du dessus.
   public canTakeFrom(zoneId: string): boolean {
-    if (this.winner || !this.piles.has(zoneId) || this.pile(zoneId).isEmpty()) return false;
+    if (this.isOver || !this.piles.has(zoneId) || this.pile(zoneId).isEmpty()) return false;
     const mine = playerZones(this.activePlayer);
     const theirs = playerZones(this.opponent);
 
@@ -155,7 +157,7 @@ export class Board {
     }
     this.checkWinner();
     // Carte piochée posée sur sa défausse : elle n'a pas pu être jouée, le tour passe.
-    if (to === playerZones(this.activePlayer).defausse && !this.winner) this.passTurn();
+    if (to === playerZones(this.activePlayer).defausse && !this.isOver) this.passTurn();
     return true;
   }
 
@@ -175,7 +177,7 @@ export class Board {
   // et on ne peut pas en retourner une autre tant qu'elle est là.
   public draw(): boolean {
     const top = this.pile(playerZones(this.activePlayer).talon).top();
-    if (this.winner || !top || !top.isFaceDown || this.crapetteHasMove()) return false;
+    if (this.isOver || !top || !top.isFaceDown || this.crapetteHasMove()) return false;
 
     this.recordAction(this.canGoUp());
     top.isFaceDown = false;
@@ -187,7 +189,7 @@ export class Board {
   // peut être jouée, et faute si une carte pouvait monter aux fondations.
   public recycle(): boolean {
     const { talon, defausse } = playerZones(this.activePlayer);
-    if (this.winner || !this.pile(talon).isEmpty() || this.pile(defausse).isEmpty() || this.crapetteHasMove()) return false;
+    if (this.isOver || !this.pile(talon).isEmpty() || this.pile(defausse).isEmpty() || this.crapetteHasMove()) return false;
 
     this.recordAction(this.canGoUp());
     const cards = this.pile(defausse).cartes.splice(0); // du dessous au dessus
@@ -238,7 +240,7 @@ export class Board {
   // L'adversaire du joueur actif crie « Crapette ! » : s'il y a une faute encore en mémoire, le tour lui revient.
   public callCrapette(caller: PlayerNumber, now = Date.now()): CrapetteCall {
     if (this.crapetteCooldownMs(caller, now) > 0) return 'cooldown';
-    if (this.winner) return 'refused';
+    if (this.isOver) return 'refused';
     this.lastCrapetteCall[caller] = now;
     if (this.foulMovesLeft === 0) return 'refused';
     this.crapettes[this.opponent]++;
@@ -247,9 +249,19 @@ export class Board {
   }
 
 
+  // Partie terminée : un gagnant, ou un match nul.
+  public get isOver(): boolean {
+    return this.winner !== null || this.isDraw;
+  }
+
+  // Les deux joueurs ont accepté le match nul.
+  public endInDraw() {
+    if (!this.isOver) this.isDraw = true;
+  }
+
   // Le joueur est parti trop longtemps : son adversaire gagne.
   public forfeit(loser: PlayerNumber) {
-    if (this.winner) return;
+    if (this.isOver) return;
     this.winner = loser === 1 ? 2 : 1;
     this.wonByForfeit = true;
   }
@@ -261,6 +273,7 @@ export class Board {
   public adminNearlyWin(player: PlayerNumber) {
     this.adminGiveTurn(player);
     this.winner = null;
+    this.isDraw = false;
     const { crapette, talon, defausse } = playerZones(player);
     const cartes = [crapette, talon, defausse].flatMap((zoneId) => this.pile(zoneId).cartes.splice(0));
     const last = cartes.find((card) => ZONES.fondations.some((to) => this.canPlace(card, crapette, to))) ?? cartes[0];
@@ -281,6 +294,7 @@ export class Board {
   }
 
   public adminForceWin(player: PlayerNumber) {
+    this.isDraw = false;
     this.winner = player;
   }
 

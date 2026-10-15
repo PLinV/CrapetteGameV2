@@ -8,8 +8,9 @@ type Stats = {
     games: number;
     wins: number;
     losses: number;
+    draws: number;
     winRate: number;
-    currentStreak: number; // > 0 : victoires d'affilée, < 0 : défaites d'affilée
+    currentStreak: number; // > 0 : victoires d'affilée, < 0 : défaites d'affilée (un nul l'arrête)
     bestWinStreak: number;
     crapettesCalled: number;
     crapettesSuffered: number;
@@ -18,10 +19,11 @@ type Stats = {
     averageWinMargin: number | null;
     averageCardsLeftOnLoss: number | null;
   };
-  opponents: { opponent: string | null; games: number; wins: number; losses: number; winRate: number }[];
+  opponents: { opponent: string | null; games: number; wins: number; losses: number; draws: number; winRate: number }[];
   recentGames: {
     id: number;
     won: boolean;
+    draw: boolean;
     opponent: string | null;
     myCrapettes: number;
     opponentCrapettes: number;
@@ -124,7 +126,9 @@ export default function History() {
               <h2 className={sectionTitleClass}>Bilan</h2>
               <div className="flex items-baseline justify-between mb-2">
                 <span className="text-sm text-gray-400">
-                  <span className="text-amber-400 font-bold">{summary.wins} V</span> · <span className="text-red-400 font-bold">{summary.losses} D</span>
+                  <span className="text-amber-400 font-bold">{summary.wins} V</span> ·{' '}
+                  {summary.draws > 0 && <><span className="text-gray-300 font-bold">{summary.draws} N</span> · </>}
+                  <span className="text-red-400 font-bold">{summary.losses} D</span>
                 </span>
                 <span className="text-3xl font-black text-amber-400">{summary.winRate} %</span>
               </div>
@@ -151,6 +155,7 @@ export default function History() {
                       <span className="font-bold text-white truncate">{o.opponent ?? DELETED_ACCOUNT}</span>
                       <span className="text-gray-400 shrink-0">
                         {o.games} partie{o.games > 1 ? 's' : ''} · <span className="text-amber-400 font-bold">{o.wins} V</span> ·{' '}
+                        {o.draws > 0 && <><span className="text-gray-300 font-bold">{o.draws} N</span> ·{' '}</>}
                         <span className="text-red-400 font-bold">{o.losses} D</span> · {o.winRate} %
                       </span>
                     </div>
@@ -165,14 +170,16 @@ export default function History() {
               <ul className="flex flex-col divide-y divide-white/5">
                 {recentGames.map((g) => (
                   <li key={g.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
-                    <span className={`w-20 font-black uppercase tracking-wider ${g.won ? 'text-amber-400' : 'text-red-400'}`}>
-                      {g.won ? 'Victoire' : 'Défaite'}
+                    <span className={`w-20 font-black uppercase tracking-wider ${g.draw ? 'text-gray-300' : g.won ? 'text-amber-400' : 'text-red-400'}`}>
+                      {g.draw ? 'Nul' : g.won ? 'Victoire' : 'Défaite'}
                     </span>
                     <span className="flex-1 min-w-32 text-white">
                       contre <span className="font-bold">{g.opponent ?? DELETED_ACCOUNT}</span>
                     </span>
                     <span className="text-gray-400">
-                      {g.forfeit
+                      {g.draw
+                        ? 'match nul accepté'
+                        : g.forfeit
                         ? g.won ? 'abandon adverse (forfait)' : 'défaite par forfait'
                         : g.won ? `il lui restait ${g.loserCardsLeft} cartes` : `il vous restait ${g.loserCardsLeft} cartes`}
                     </span>

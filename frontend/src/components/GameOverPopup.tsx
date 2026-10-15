@@ -2,6 +2,7 @@ import { Suits, primaryButtonClass, secondaryButtonClass } from './PageLayout';
 
 type GameOverPopupProps = {
   won: boolean;
+  draw: boolean; // match nul accepté par les deux joueurs
   byForfeit: boolean; // le perdant n'est pas revenu à temps
   iAskedRematch: boolean;
   opponentAskedRematch: boolean;
@@ -9,22 +10,24 @@ type GameOverPopupProps = {
   onLeave: () => void;
 };
 
-export default function GameOverPopup({ won, byForfeit, iAskedRematch, opponentAskedRematch, onPlayAgain, onLeave }: GameOverPopupProps) {
+export default function GameOverPopup({ won, draw, byForfeit, iAskedRematch, opponentAskedRematch, onPlayAgain, onLeave }: GameOverPopupProps) {
   return (
     <div className="absolute inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center">
       <div className="relative w-full max-w-md mx-4 p-10 rounded-3xl bg-black/60 border border-[#d4af37]/40 shadow-[0_20px_60px_rgba(0,0,0,0.8)] text-center overflow-hidden">
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-64 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
 
-        <Suits className={`relative mb-4 ${won ? 'text-amber-500/60' : 'text-gray-600'}`} />
+        <Suits className={`relative mb-4 ${won || draw ? 'text-amber-500/60' : 'text-gray-600'}`} />
         <h2
           className={`relative text-6xl font-black uppercase tracking-widest text-transparent bg-clip-text drop-shadow-[0_0_20px_rgba(212,175,55,0.25)] ${
-            won ? 'bg-gradient-to-b from-[#ffe8a1] to-[#d4af37]' : 'bg-gradient-to-b from-gray-300 to-gray-500'
+            won || draw ? 'bg-gradient-to-b from-[#ffe8a1] to-[#d4af37]' : 'bg-gradient-to-b from-gray-300 to-gray-500'
           }`}
         >
-          {won ? 'Victoire' : 'Défaite'}
+          {draw ? 'Match nul' : won ? 'Victoire' : 'Défaite'}
         </h2>
         <p className="relative mt-3 mb-8 text-sm uppercase tracking-widest text-gray-400">
-          {byForfeit
+          {draw
+            ? 'Vous vous êtes mis d\'accord sur un match nul.'
+            : byForfeit
             ? won ? "Votre adversaire n'est pas revenu à temps." : "Vous n'êtes pas revenu à temps : défaite par forfait."
             : won ? "Vous n'avez plus aucune carte !" : "Votre adversaire s'est débarrassé de toutes ses cartes."}
         </p>

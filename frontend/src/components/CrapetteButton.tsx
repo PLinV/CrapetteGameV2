@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
+import { useSecondsLeft } from '../hooks/useSecondsLeft';
 
 type CrapetteButtonProps = {
   enabled: boolean;
@@ -10,23 +11,7 @@ type CrapetteButtonProps = {
 // Gros bouton rouge serti d'or, grisé quand on ne peut pas crier « Crapette ! ».
 // Après chaque appel, il reste grisé quelques secondes avec le compte à rebours.
 export default function CrapetteButton({ enabled, readyAt, onClick, style }: CrapetteButtonProps) {
-  const [now, setNow] = useState(() => Date.now());
-  const secondsLeft = Math.max(0, Math.ceil((readyAt - now) / 1000));
-  // Le compte à rebours tourne seulement pendant le délai.
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
-    const tick = () => {
-      const time = Date.now();
-      setNow(time);
-      if (time >= readyAt) clearInterval(timer);
-    };
-    const first = setTimeout(tick, 0); // nouvel appel : le compte à rebours s'affiche tout de suite
-    if (readyAt > Date.now()) timer = setInterval(tick, 250);
-    return () => {
-      clearTimeout(first);
-      clearInterval(timer);
-    };
-  }, [readyAt]);
+  const secondsLeft = useSecondsLeft(readyAt);
   const usable = enabled && secondsLeft === 0;
 
   return (
