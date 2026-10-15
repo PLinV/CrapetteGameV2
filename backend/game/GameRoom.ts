@@ -14,6 +14,10 @@ export type GameResult = {
   forfeit: boolean;
 };
 
+// Message du chat de la table. `seat` : numéro du joueur qui l'a écrit.
+export type ChatMessage = { id: number; seat: PlayerNumber; username: string; text: string; at: number };
+const MAX_CHAT_HISTORY = 100;
+
 // Compte du joueur assis à une place.
 export type Account = { id: number; username: string; avatarUrl: string | null };
 
@@ -46,6 +50,9 @@ export class GameRoom {
   public board: Board | null = null;
   // Comptes qui veulent rejouer après la fin de la partie.
   private rematchVotes = new Set<number>();
+  // Chat de la table : gardé en mémoire tant que les deux mêmes joueurs y sont assis.
+  private chat: ChatMessage[] = [];
+  private nextChatId = 1;
 
   public readonly name: string;
   private readonly ownerId: number | null;
@@ -113,6 +120,7 @@ export class GameRoom {
       this.accounts[seat] = null;
       this.board = null;
       this.rematchVotes.clear();
+      this.chat = []; // un nouvel adversaire ne voit pas la conversation précédente
     }
     this.updateForfeits(now);
     if (!this.hasConnections()) this.closesAt = now + this.forfeitDelayMs;
@@ -189,6 +197,20 @@ export class GameRoom {
       startedAt: board.startedAt,
       forfeit: board.wonByForfeit,
     };
+  }
+
+  // Ajoute un message écrit par un joueur assis à la table (texte déjà vérifié), ou renvoie null.
+  public addChatMessage(userId: number, text: string, now = Date.now()): ChatMessage | null {
+    const seat = this.playerNumber(userId);
+    if (!seat) return null;
+    const message = { id: this.nextChatId++, seat, username: this.accounts[seat - 1]!.username, text, at: now };
+    this.chat.push(message);
+    if (this.chat.length > MAX_CHAT_HISTORY) this.chat.shift();
+    return message;
+  }
+
+  public chatHistory(): ChatMessage[] {
+    return this.chat;
   }
 
   public seatedUserIds(): number[] {

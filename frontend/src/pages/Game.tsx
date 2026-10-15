@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { useGame } from '../hooks/useGame';
 import { useFitScale } from '../hooks/useFitScale';
+import { useSideSpace } from '../hooks/useSideSpace';
 import Board from '../components/Board';
 import WaitingPopup from '../components/WaitingPopup';
 import GameOverPopup from '../components/GameOverPopup';
@@ -10,6 +11,19 @@ import AdminPanel from '../components/AdminPanel';
 import PasswordPrompt from '../components/PasswordPrompt';
 import GameMenu from '../components/GameMenu';
 import ConnectionLost from '../components/ConnectionLost';
+import ChatPanel from '../components/ChatPanel';
+
+// Le chat prend la bande libre à droite du plateau si elle est assez large, sinon il passe par-dessus.
+const MIN_SIDE_CHAT_WIDTH = 300;
+const CHAT_OPEN_KEY = 'crapette.chatOpen'; // chat ouvert ou fermé, retenu d'une partie à l'autre
+
+const readChatOpen = () => {
+  try {
+    return localStorage.getItem(CHAT_OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
 
 const MESSAGE_STYLES = {
   error: 'bg-red-600/90 border-red-400 shadow-[0_10px_40px_rgba(220,38,38,0.5)] text-white',
@@ -21,7 +35,7 @@ export default function Game() {
   const navigate = useNavigate();
   const {
     connectionLost, room, passwordPrompt, submitPassword, state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
-    draw, move, passTurn, callCrapette, playAgain, adminAction, leave,
+    draw, move, passTurn, callCrapette, playAgain, adminAction, leave, chat, sendChat,
   } = useGame(roomId);
   const isOver = !!state?.winner;
 
@@ -30,13 +44,31 @@ export default function Game() {
   const boardAreaRef = useRef<HTMLDivElement>(null);
   const scale = useFitScale(boardRef, boardAreaRef);
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  const sideSpace = useSideSpace(boardRef, rootRef);
+  const sideChat = sideSpace >= MIN_SIDE_CHAT_WIDTH;
+  const [chatOpen, setChatOpen] = useState(readChatOpen);
+  // Messages de l'adversaire arrivés pendant que le chat était fermé.
+  const [lastSeenId, setLastSeenId] = useState(0);
+  const lastId = chat.at(-1)?.id ?? 0;
+  const unread = chatOpen ? 0 : chat.filter((m) => m.seat !== mySeat && m.id > lastSeenId).length;
+  const toggleChat = (open: boolean) => {
+    setChatOpen(open);
+    if (!open) setLastSeenId(lastId); // tout ce qui était affiché a été vu
+    try {
+      localStorage.setItem(CHAT_OPEN_KEY, open ? '1' : '0');
+    } catch {
+      // stockage indisponible (navigation privée...) : le choix n'est simplement pas retenu
+    }
+  };
+
   const handleLeave = () => {
     leave();
     navigate('/');
   };
 
   return (
-    <div className="relative flex w-full h-dvh bg-neutral-900 overflow-hidden select-none">
+    <div ref={rootRef} className="relative flex w-full h-dvh bg-neutral-900 overflow-hidden select-none">
       {connectionLost && <ConnectionLost />}
 
       {passwordPrompt && (
@@ -87,6 +119,31 @@ export default function Game() {
           </div>
         </MotionConfig>
       </div>
+
+      {chatOpen ? (
+        <ChatPanel
+          messages={chat}
+          mySeat={mySeat}
+          onSend={sendChat}
+          onClose={() => toggleChat(false)}
+          overlay={!sideChat}
+          width={sideSpace}
+        />
+      ) : (
+        <button
+          onClick={() => toggleChat(true)}
+          aria-label={unread ? `Ouvrir la discussion (${unread} non lu${unread > 1 ? 's' : ''})` : 'Ouvrir la discussion'}
+          // Dans la bande libre à droite du plateau s'il y en a une, sinon dans le coin en bas à droite.
+          className={`absolute z-[100] right-4 ${sideSpace >= 88 ? 'top-1/2 -translate-y-1/2' : 'bottom-4'} w-14 h-14 rounded-full bg-neutral-800 border-2 border-amber-500/70 text-2xl shadow-[0_6px_20px_rgba(0,0,0,0.6)] hover:bg-neutral-700 hover:border-amber-300 active:scale-95 transition-all cursor-pointer`}
+        >
+          💬
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1.5 rounded-full bg-red-600 text-xs font-black text-white flex items-center justify-center">
+              {unread > 9 ? '9+' : unread}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   );
 }
