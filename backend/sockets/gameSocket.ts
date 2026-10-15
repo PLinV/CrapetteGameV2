@@ -17,6 +17,10 @@ const MAX_ROOM_PASSWORD_LENGTH = 50;
 const MAX_PASSWORD_ATTEMPTS = 10;
 const PASSWORD_ATTEMPTS_WINDOW_MS = 10 * 60 * 1000;
 const LOBBY = 'lobby'; // canal des sockets qui regardent la liste des parties
+// Chat : 300 caractères par message, et au plus 5 messages par tranche de 5 secondes par joueur.
+const MAX_CHAT_LENGTH = 300;
+const MAX_CHAT_MESSAGES = 5;
+const CHAT_WINDOW_MS = 5000;
 
 const ADMIN_ACTIONS = ['nearly_win', 'give_turn', 'force_win', 'new_game'] as const;
 type AdminAction = (typeof ADMIN_ACTIONS)[number];
@@ -134,6 +138,7 @@ export function setupGameSockets(io: Server) {
       // Partie en cours : l'adversaire voit le compte à rebours. Sinon, il attend un nouvel adversaire.
       if (room.board) sendState(roomId, room);
       else io.to(roomId).emit('waiting_for_opponent');
+      io.to(roomId).emit('chat_history', room.chatHistory()); // vidé si la place s'est libérée
     }
     notifyPaused(userIds);
   };
@@ -252,12 +257,32 @@ export function setupGameSockets(io: Server) {
       socket.join(roomId);
       socket.data.roomId = roomId;
       socket.emit('seat', { seat, name: room.name, locked: room.isLocked });
+      socket.emit('chat_history', room.chatHistory());
 
       armTimers(roomId, room);
       broadcastLobby();
       notifyPaused(room.seatedUserIds()); // le retour d'un joueur change le compte à rebours de l'autre
       if (room.board) sendState(roomId, room); // l'adversaire voit aussi le retour du joueur
       else socket.emit('waiting_for_opponent');
+    });
+
+    // Chat entre les deux joueurs de la table (avant, pendant et après la partie).
+    let chatTimes: number[] = [];
+    socket.on('chat_send', (text: unknown) => {
+      const room = myRoom();
+      if (!room || typeof text !== 'string') return;
+      // Les caractères de contrôle (retours à la ligne compris) deviennent des espaces.
+      const clean = text.replace(/\p{Cc}/gu, ' ').trim().slice(0, MAX_CHAT_LENGTH);
+      if (!clean) return;
+      const now = Date.now();
+      chatTimes = chatTimes.filter((at) => now - at < CHAT_WINDOW_MS);
+      if (chatTimes.length >= MAX_CHAT_MESSAGES) {
+        socket.emit('action_error', 'Doucement : attendez quelques secondes avant le prochain message.');
+        return;
+      }
+      chatTimes.push(now);
+      const message = room.addChatMessage(socket.data.userId, clean, now);
+      if (message) io.to(socket.data.roomId).emit('chat_message', message);
     });
 
     socket.on('leave_room', () => leaveRoom(socket));

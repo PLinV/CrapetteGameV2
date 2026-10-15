@@ -20,6 +20,8 @@ type Message = { text: string; kind: 'error' | 'crapette' };
 
 type Seat = 1 | 2; // 1 = cartes rouges, 2 = cartes bleues
 
+export type ChatMessage = { id: number; seat: Seat; username: string; text: string; at: number };
+
 type GameState = {
   turn: Seat | null;
   cartes: CarteData[];
@@ -58,6 +60,7 @@ export function useGame(roomId: string) {
   // Table protégée : le serveur demande le mot de passe (wrong = celui donné était faux).
   const [passwordPrompt, setPasswordPrompt] = useState<{ name: string; wrong: boolean } | null>(null);
   const passwordRef = useRef<string | undefined>(undefined);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
 
   const join = () => socket.emit('join_room', { roomId, password: passwordRef.current });
   const connectionLost = useSocketConnection(join, `/game/${roomId}`);
@@ -79,6 +82,7 @@ export function useGame(roomId: string) {
       });
     // Partie introuvable, pleine... : retour au menu « Jouer », qui affiche le message.
     const onRoomError = (error: string) => navigate('/matchmaking', { replace: true, state: { error } });
+    const onChatMessage = (chatMessage: ChatMessage) => setChat((messages) => [...messages, chatMessage]);
 
     socket.on('seat', onSeat);
     socket.on('password_required', setPasswordPrompt);
@@ -87,6 +91,8 @@ export function useGame(roomId: string) {
     socket.on('action_error', onActionError);
     socket.on('crapette_called', onCrapette);
     socket.on('room_error', onRoomError);
+    socket.on('chat_history', setChat);
+    socket.on('chat_message', onChatMessage);
 
     return () => {
       socket.off('seat', onSeat);
@@ -96,6 +102,8 @@ export function useGame(roomId: string) {
       socket.off('action_error', onActionError);
       socket.off('crapette_called', onCrapette);
       socket.off('room_error', onRoomError);
+      socket.off('chat_history', setChat);
+      socket.off('chat_message', onChatMessage);
     };
   }, [roomId, navigate]);
 
@@ -126,5 +134,7 @@ export function useGame(roomId: string) {
     isAdmin,
     adminAction: (action: AdminAction, target: 'me' | 'opponent' = 'me') => socket.emit('admin_action', { action, target }),
     leave: () => socket.emit('leave_room'),
+    chat,
+    sendChat: (text: string) => socket.emit('chat_send', text),
   };
 }
