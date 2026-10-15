@@ -9,6 +9,7 @@ import GameOverPopup from '../components/GameOverPopup';
 import AdminPanel from '../components/AdminPanel';
 import PasswordPrompt from '../components/PasswordPrompt';
 import GameMenu from '../components/GameMenu';
+import ConnectionLost from '../components/ConnectionLost';
 
 const MESSAGE_STYLES = {
   error: 'bg-red-600/90 border-red-400 shadow-[0_10px_40px_rgba(220,38,38,0.5)] text-white',
@@ -19,7 +20,7 @@ export default function Game() {
   const roomId = useParams<{ roomId: string }>().roomId!;
   const navigate = useNavigate();
   const {
-    room, passwordPrompt, submitPassword, state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
+    connectionLost, room, passwordPrompt, submitPassword, state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
     draw, move, passTurn, callCrapette, playAgain, adminAction, leave,
   } = useGame(roomId);
   const isOver = !!state?.winner;
@@ -36,6 +37,8 @@ export default function Game() {
 
   return (
     <div className="relative flex w-full h-dvh bg-neutral-900 overflow-hidden select-none">
+      {connectionLost && <ConnectionLost />}
+
       {passwordPrompt && (
         <PasswordPrompt {...passwordPrompt} onSubmit={submitPassword} onCancel={() => navigate('/matchmaking')} />
       )}
