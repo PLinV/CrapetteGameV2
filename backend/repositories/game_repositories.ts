@@ -3,11 +3,11 @@ import { GameResult } from '../game/GameRoom';
 
 export async function saveGame(result: GameResult) {
   await query(
-    `INSERT INTO games (winner_id, loser_id, winner_crapettes, loser_crapettes, loser_cards_left, turns, started_at, forfeit)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    `INSERT INTO games (winner_id, loser_id, winner_crapettes, loser_crapettes, loser_cards_left, turns, started_at, forfeit, draw)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       result.winnerId, result.loserId, result.winnerCrapettes, result.loserCrapettes,
-      result.loserCardsLeft, result.turns, result.startedAt, result.forfeit,
+      result.loserCardsLeft, result.turns, result.startedAt, result.forfeit, result.draw,
     ],
   );
 }
@@ -16,6 +16,7 @@ export async function saveGame(result: GameResult) {
 export type PlayedGame = {
   id: number;
   won: boolean;
+  draw: boolean; // match nul (won est alors faux)
   opponent: string | null; // null si le compte adverse a été supprimé
   myCrapettes: number;
   opponentCrapettes: number;
@@ -30,7 +31,8 @@ export type PlayedGame = {
 export async function getUserGames(userId: number): Promise<PlayedGame[]> {
   return query<PlayedGame>(
     `SELECT g.id,
-            g.winner_id = $1 AS won,
+            g.winner_id = $1 AND NOT g.draw AS won,
+            g.draw,
             u.username AS opponent,
             CASE WHEN g.winner_id = $1 THEN g.winner_crapettes ELSE g.loser_crapettes END AS "myCrapettes",
             CASE WHEN g.winner_id = $1 THEN g.loser_crapettes ELSE g.winner_crapettes END AS "opponentCrapettes",
@@ -48,14 +50,15 @@ export async function getUserGames(userId: number): Promise<PlayedGame[]> {
 }
 
 // Bilan de chaque joueur ayant au moins une partie terminée.
-export type LeaderboardRow = { username: string; avatarVersion: string | null; games: number; wins: number; crapettes: number };
+export type LeaderboardRow = { username: string; avatarVersion: string | null; games: number; wins: number; draws: number; crapettes: number };
 
 export async function getLeaderboardRows(): Promise<LeaderboardRow[]> {
   return query<LeaderboardRow>(
     `SELECT u.username,
             (SELECT (EXTRACT(EPOCH FROM a.updated_at) * 1000)::BIGINT::TEXT FROM avatars a WHERE a.user_id = u.id) AS "avatarVersion",
             COUNT(*)::INTEGER AS games,
-            COUNT(*) FILTER (WHERE g.winner_id = u.id)::INTEGER AS wins,
+            COUNT(*) FILTER (WHERE g.winner_id = u.id AND NOT g.draw)::INTEGER AS wins,
+            COUNT(*) FILTER (WHERE g.draw)::INTEGER AS draws,
             SUM(CASE WHEN g.winner_id = u.id THEN g.winner_crapettes ELSE g.loser_crapettes END)::INTEGER AS crapettes
      FROM users u
      JOIN games g ON g.winner_id = u.id OR g.loser_id = u.id
@@ -63,17 +66,18 @@ export async function getLeaderboardRows(): Promise<LeaderboardRow[]> {
   );
 }
 
-// Duels les plus joués : chaque paire de joueurs avec le score de chacun.
-export type Rivalry = { player1: string; player2: string; wins1: number; wins2: number };
+// Duels les plus joués : chaque paire de joueurs avec le score de chacun et les nuls.
+export type Rivalry = { player1: string; player2: string; wins1: number; wins2: number; draws: number };
 
 export async function getRivalries(limit: number): Promise<Rivalry[]> {
   return query<Rivalry>(
-    `SELECT u1.username AS player1, u2.username AS player2, d.wins1, d.games - d.wins1 AS wins2
+    `SELECT u1.username AS player1, u2.username AS player2, d.wins1, d.games - d.wins1 - d.draws AS wins2, d.draws
      FROM (
        SELECT LEAST(winner_id, loser_id) AS id1,
               GREATEST(winner_id, loser_id) AS id2,
               COUNT(*)::INTEGER AS games,
-              COUNT(*) FILTER (WHERE winner_id < loser_id)::INTEGER AS wins1
+              COUNT(*) FILTER (WHERE winner_id < loser_id AND NOT draw)::INTEGER AS wins1,
+              COUNT(*) FILTER (WHERE draw)::INTEGER AS draws
        FROM games
        WHERE winner_id IS NOT NULL AND loser_id IS NOT NULL
        GROUP BY 1, 2

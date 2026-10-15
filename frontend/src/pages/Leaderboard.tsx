@@ -11,11 +11,12 @@ type PlayerRow = {
   avatarUrl: string | null;
   games: number;
   wins: number;
+  draws: number;
   losses: number;
   winRate: number;
   crapettes: number;
 };
-type Rivalry = { player1: string; player2: string; wins1: number; wins2: number };
+type Rivalry = { player1: string; player2: string; wins1: number; wins2: number; draws: number };
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 // Ordre d'affichage du podium : 2e, 1er, 3e.
@@ -104,6 +105,7 @@ export default function Leaderboard() {
                     <th className="text-left font-bold pb-3">Joueur</th>
                     <th className="font-bold pb-3 px-2">Parties</th>
                     <th className="font-bold pb-3 px-2">V</th>
+                    <th className="font-bold pb-3 px-2">N</th>
                     <th className="font-bold pb-3 px-2">D</th>
                     <th className="font-bold pb-3 px-2">%</th>
                     <th className="font-bold pb-3 px-2 hidden md:table-cell">Crapettes</th>
@@ -124,6 +126,7 @@ export default function Leaderboard() {
                         </td>
                         <td className="py-3 px-2 text-gray-300">{p.games}</td>
                         <td className="py-3 px-2 text-amber-400 font-bold">{p.wins}</td>
+                        <td className="py-3 px-2 text-gray-300 font-bold">{p.draws}</td>
                         <td className="py-3 px-2 text-red-400 font-bold">{p.losses}</td>
                         <td className="py-3 px-2 text-white font-bold">{p.winRate}</td>
                         <td className="py-3 pr-1 text-gray-300 hidden md:table-cell">{p.crapettes}</td>
@@ -145,6 +148,7 @@ export default function Leaderboard() {
                         <span className={r.wins1 > r.wins2 ? 'text-amber-400' : 'text-gray-300'}>{r.wins1}</span>
                         <span className="text-gray-600"> – </span>
                         <span className={r.wins2 > r.wins1 ? 'text-amber-400' : 'text-gray-300'}>{r.wins2}</span>
+                        {r.draws > 0 && <span className="ml-2 text-xs font-bold text-gray-500">{r.draws} nul{r.draws > 1 ? 's' : ''}</span>}
                       </span>
                       <span className={`truncate font-bold ${r.wins2 >= r.wins1 ? 'text-white' : 'text-gray-500'}`}>{r.player2}</span>
                     </li>

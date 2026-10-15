@@ -28,6 +28,8 @@ type GameState = {
   selectableZones: string[];
   winner: Seat | null; // null tant que la partie continue
   wonByForfeit: boolean; // le perdant n'est pas revenu à temps
+  draw: boolean; // match nul accepté par les deux joueurs
+  drawOfferBy: Seat | null; // joueur qui propose le match nul, en attente de réponse
   rematchVotes: Seat[]; // joueurs qui ont demandé la revanche
   players: (PlayerInfo | null)[]; // par numéro de joueur
 };
@@ -35,24 +37,35 @@ type GameState = {
 // connected : faux si le joueur a quitté la table (sa place et la partie l'attendent).
 // forfeitDeadline : heure (ms) à laquelle il perd par forfait s'il n'est pas revenu, sinon null.
 // crapetteReadyAt : heure (ms) à partir de laquelle il peut de nouveau crier « Crapette ! ».
+// drawReadyAt : heure (ms) à partir de laquelle il peut reproposer le nul (après un refus).
 export type PlayerInfo = {
   username: string;
   avatarUrl: string | null;
   connected: boolean;
   forfeitDeadline: number | null;
   crapetteReadyAt: number;
+  drawReadyAt: number;
 };
 
-type ServerPlayer = Omit<PlayerInfo, 'forfeitDeadline' | 'crapetteReadyAt'> & { forfeitInMs: number | null; crapetteCooldownMs: number };
+type ServerPlayer = Omit<PlayerInfo, 'forfeitDeadline' | 'crapetteReadyAt' | 'drawReadyAt'> & {
+  forfeitInMs: number | null;
+  crapetteCooldownMs: number;
+  drawCooldownMs: number;
+};
 
 // Le serveur envoie des temps restants : on les convertit en heures locales, pour les comptes à rebours.
 const withDeadlines = (state: Omit<GameState, 'players'> & { players: (ServerPlayer | null)[] }): GameState => ({
   ...state,
   players: state.players.map((player) => {
     if (!player) return null;
-    const { forfeitInMs, crapetteCooldownMs, ...rest } = player;
+    const { forfeitInMs, crapetteCooldownMs, drawCooldownMs, ...rest } = player;
     const now = Date.now();
-    return { ...rest, forfeitDeadline: forfeitInMs === null ? null : now + forfeitInMs, crapetteReadyAt: now + crapetteCooldownMs };
+    return {
+      ...rest,
+      forfeitDeadline: forfeitInMs === null ? null : now + forfeitInMs,
+      crapetteReadyAt: now + crapetteCooldownMs,
+      drawReadyAt: now + drawCooldownMs,
+    };
   }),
 });
 
@@ -140,6 +153,9 @@ export function useGame(roomId: string) {
     passTurn: () => socket.emit('pass_turn'),
     callCrapette: () => socket.emit('call_crapette'),
     playAgain: () => socket.emit('play_again'),
+    offerDraw: () => socket.emit('offer_draw'),
+    answerDraw: (accept: boolean) => socket.emit('answer_draw', accept),
+    cancelDraw: () => socket.emit('cancel_draw'),
     isAdmin,
     adminAction: (action: AdminAction, target: 'me' | 'opponent' = 'me') => socket.emit('admin_action', { action, target }),
     leave: () => socket.emit('leave_room'),

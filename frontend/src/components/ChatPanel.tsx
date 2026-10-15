@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { ChatMessage } from '../hooks/useGame';
 
 type ChatPanelProps = {
@@ -8,6 +8,7 @@ type ChatPanelProps = {
   onClose: () => void;
   overlay: boolean; // petit écran : le panneau passe par-dessus le plateau
   width?: number; // grand écran : largeur de la bande libre à droite du plateau
+  headerAction?: ReactNode; // bouton affiché dans l'en-tête (proposer le nul)
 };
 
 const MAX_LENGTH = 300; // comme le serveur
@@ -16,7 +17,7 @@ const REACTIONS = ['👍', '😂', '😮', '😡', '❤️'];
 const formatTime = (at: number) => new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
 // Chat entre les deux joueurs de la table.
-export default function ChatPanel({ messages, mySeat, onSend, onClose, overlay, width }: ChatPanelProps) {
+export default function ChatPanel({ messages, mySeat, onSend, onClose, overlay, width, headerAction }: ChatPanelProps) {
   const [draft, setDraft] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +44,7 @@ export default function ChatPanel({ messages, mySeat, onSend, onClose, overlay, 
     >
       <header className="shrink-0 h-14 px-4 flex items-center justify-between border-b border-white/10">
         <span className="text-sm font-black uppercase tracking-widest text-amber-400">💬 Discussion</span>
+        <span className="ml-auto mr-2">{headerAction}</span>
         <button
           onClick={onClose}
           aria-label="Fermer la discussion"

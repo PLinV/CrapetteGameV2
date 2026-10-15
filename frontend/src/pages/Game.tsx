@@ -12,6 +12,7 @@ import PasswordPrompt from '../components/PasswordPrompt';
 import GameMenu from '../components/GameMenu';
 import ConnectionLost from '../components/ConnectionLost';
 import ChatPanel from '../components/ChatPanel';
+import { DrawButton, DrawOfferPrompt } from '../components/DrawOffer';
 
 // Le chat prend la bande libre à droite du plateau si elle est assez large, sinon il passe par-dessus.
 const MIN_SIDE_CHAT_WIDTH = 300;
@@ -36,8 +37,21 @@ export default function Game() {
   const {
     connectionLost, room, passwordPrompt, submitPassword, state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
     draw, recycle, move, passTurn, callCrapette, playAgain, adminAction, leave, chat, sendChat, warn,
+    offerDraw, answerDraw, cancelDraw,
   } = useGame(roomId);
-  const isOver = !!state?.winner;
+  const isOver = !!state?.winner || !!state?.draw;
+  const opponentSeat = mySeat === 1 ? 2 : 1;
+  // Match nul : proposé par moi (en attente), ou par l'adversaire (à accepter ou refuser).
+  const drawButton = (compact: boolean) =>
+    state && !isOver && mySeat ? (
+      <DrawButton
+        compact={compact}
+        pending={state.drawOfferBy === mySeat}
+        readyAt={state.players[mySeat - 1]?.drawReadyAt ?? 0}
+        onOffer={offerDraw}
+        onCancel={cancelDraw}
+      />
+    ) : null;
 
   // Le plateau a une taille fixe : on le met à l'échelle pour qu'il tienne dans la fenêtre.
   const boardRef = useRef<HTMLDivElement>(null);
@@ -79,9 +93,14 @@ export default function Game() {
 
       {state && isAdmin && <AdminPanel onAction={adminAction} />}
 
-      {state?.winner && (
+      {state && !isOver && state.drawOfferBy === opponentSeat && (
+        <DrawOfferPrompt opponentName={state.players[opponentSeat - 1]?.username ?? 'Votre adversaire'} onAnswer={answerDraw} />
+      )}
+
+      {state && isOver && (
         <GameOverPopup
           won={state.winner === mySeat}
+          draw={state.draw}
           byForfeit={state.wonByForfeit}
           iAskedRematch={!!mySeat && state.rematchVotes.includes(mySeat)}
           opponentAskedRematch={state.rematchVotes.some((seat) => seat !== mySeat)}
@@ -130,21 +149,25 @@ export default function Game() {
           onClose={() => toggleChat(false)}
           overlay={!sideChat}
           width={sideSpace}
+          headerAction={drawButton(true)}
         />
       ) : (
-        <button
-          onClick={() => toggleChat(true)}
-          aria-label={unread ? `Ouvrir la discussion (${unread} non lu${unread > 1 ? 's' : ''})` : 'Ouvrir la discussion'}
-          // Dans la bande libre à droite du plateau s'il y en a une, sinon dans le coin en bas à droite.
-          className={`absolute z-[100] right-4 ${sideSpace >= 88 ? 'top-1/2 -translate-y-1/2' : 'bottom-4'} w-14 h-14 rounded-full bg-neutral-800 border-2 border-amber-500/70 text-2xl shadow-[0_6px_20px_rgba(0,0,0,0.6)] hover:bg-neutral-700 hover:border-amber-300 active:scale-95 transition-all cursor-pointer`}
-        >
-          💬
-          {unread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1.5 rounded-full bg-red-600 text-xs font-black text-white flex items-center justify-center">
-              {unread > 9 ? '9+' : unread}
-            </span>
-          )}
-        </button>
+        // Dans la bande libre à droite du plateau s'il y en a une, sinon dans le coin en bas à droite.
+        <div className={`absolute z-[100] right-4 flex flex-col gap-3 ${sideSpace >= 88 ? 'top-1/2 -translate-y-1/2' : 'bottom-4'}`}>
+          {drawButton(false)}
+          <button
+            onClick={() => toggleChat(true)}
+            aria-label={unread ? `Ouvrir la discussion (${unread} non lu${unread > 1 ? 's' : ''})` : 'Ouvrir la discussion'}
+            className="relative w-14 h-14 rounded-full bg-neutral-800 border-2 border-amber-500/70 text-2xl shadow-[0_6px_20px_rgba(0,0,0,0.6)] hover:bg-neutral-700 hover:border-amber-300 active:scale-95 transition-all cursor-pointer"
+          >
+            💬
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1.5 rounded-full bg-red-600 text-xs font-black text-white flex items-center justify-center">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </button>
+        </div>
       )}
     </div>
   );
