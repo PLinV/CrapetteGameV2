@@ -18,7 +18,7 @@ export default function CardFan() {
       {FAN.map((card, i) => (
         <motion.div
           key={i}
-          className="absolute left-1/2 bottom-0 -ml-[47px] origin-bottom"
+          className="absolute left-1/2 bottom-0 -ml-[52px] origin-bottom"
           initial={{ rotate: 0, x: 0, y: 40, opacity: 0 }}
           animate={{ rotate: card.angle, x: card.x, y: [0, -8, 0], opacity: 1 }}
           transition={{
