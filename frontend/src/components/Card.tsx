@@ -74,7 +74,7 @@ export default function Card({ val, symbole = '', isFaceDown, dosCouleur }: Card
   const corner = (position: string) => (
     <div className={`absolute ${position} flex flex-col items-center font-bold leading-none`}>
       <span className={`text-[28px] font-black ${val === 10 ? 'tracking-[-0.12em] -ml-[0.12em]' : ''}`}>{val ? (INDICES[val] ?? val) : ''}</span>
-      <span className="text-[30px] -mt-1.5">{sym}</span>
+      <span className="text-[30px] -mt-2.5">{sym}</span>
     </div>
   );
 
