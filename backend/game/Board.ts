@@ -182,6 +182,19 @@ export class Board {
     return true;
   }
 
+  // Talon vide : la défausse est retournée d'un bloc pour refaire un talon (la première carte défaussée
+  // devient la prochaine à piocher). Le tour continue. Mêmes règles que pour piocher : refusé si la crapette
+  // peut être jouée, et faute si une carte pouvait monter aux fondations.
+  public recycle(): boolean {
+    const { talon, defausse } = playerZones(this.activePlayer);
+    if (this.winner || !this.pile(talon).isEmpty() || this.pile(defausse).isEmpty() || this.crapetteHasMove()) return false;
+
+    this.recordAction(this.canGoUp());
+    const cards = this.pile(defausse).cartes.splice(0); // du dessous au dessus
+    for (const card of cards.reverse()) this.pile(talon).add(card, true);
+    return true;
+  }
+
   // Vrai si le joueur actif a retourné une carte de son talon sans l'avoir encore jouée.
   public hasDrawnCard(): boolean {
     const top = this.pile(playerZones(this.activePlayer).talon).top();
@@ -258,6 +271,13 @@ export class Board {
     this.discardHand();
     this.activePlayer = player;
     this.foulMovesLeft = 0;
+  }
+
+  // Vide le talon du joueur sur sa défausse (cartes visibles) : pour tester le bouton ♻️.
+  public adminEmptyTalon(player: PlayerNumber) {
+    const { talon, defausse } = playerZones(player);
+    const cartes = this.pile(talon).cartes.splice(0);
+    for (const card of cartes.reverse()) this.pile(defausse).add(card); // comme si on les avait piochées une à une
   }
 
   public adminForceWin(player: PlayerNumber) {

@@ -26,7 +26,7 @@ const MAX_CHAT_LENGTH = 300;
 const MAX_CHAT_MESSAGES = 5;
 const CHAT_WINDOW_MS = 5000;
 
-const ADMIN_ACTIONS = ['nearly_win', 'give_turn', 'force_win', 'new_game'] as const;
+const ADMIN_ACTIONS = ['nearly_win', 'give_turn', 'empty_talon', 'force_win', 'new_game'] as const;
 type AdminAction = (typeof ADMIN_ACTIONS)[number];
 
 const rooms = new Map<string, GameRoom>();
@@ -301,6 +301,15 @@ export function setupGameSockets(io: Server) {
       sendState(socket.data.roomId, game.room);
     });
 
+    socket.on('recycle_talon', () => {
+      const game = myTurnBoard();
+      if (!game) return;
+      if (!game.board.recycle()) {
+        socket.emit('action_error', game.board.crapetteHasMove() ? CRAPETTE_FIRST : 'Impossible de retourner la défausse maintenant.');
+      }
+      sendState(socket.data.roomId, game.room);
+    });
+
     socket.on('move_card', (payload: { from?: unknown; to?: unknown }) => {
       const { from, to } = payload ?? {};
       const game = myTurnBoard();
@@ -351,6 +360,7 @@ export function setupGameSockets(io: Server) {
       const player = (target === 'opponent' ? 3 - me : me) as PlayerNumber;
       if (action === 'nearly_win') board.adminNearlyWin(player);
       else if (action === 'give_turn') board.adminGiveTurn(player);
+      else if (action === 'empty_talon') board.adminEmptyTalon(player);
       else if (action === 'force_win') board.adminForceWin(player);
       else room.newGame();
       armTimers(socket.data.roomId, room);

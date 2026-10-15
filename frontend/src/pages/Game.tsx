@@ -35,7 +35,7 @@ export default function Game() {
   const navigate = useNavigate();
   const {
     connectionLost, room, passwordPrompt, submitPassword, state, message, mySeat, isMyTurn, isPlayer1, isAdmin,
-    draw, move, passTurn, callCrapette, playAgain, adminAction, leave, chat, sendChat, warn,
+    draw, recycle, move, passTurn, callCrapette, playAgain, adminAction, leave, chat, sendChat, warn,
   } = useGame(roomId);
   const isOver = !!state?.winner;
 
@@ -108,6 +108,7 @@ export default function Game() {
               isPlayer1={isPlayer1}
               isMyTurn={isMyTurn && !isOver}
               onDraw={draw}
+              onRecycle={recycle}
               onMove={move}
               canCallCrapette={!!state && !isMyTurn && !isOver}
               onCrapette={callCrapette}

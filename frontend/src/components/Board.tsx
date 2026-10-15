@@ -13,6 +13,7 @@ type BoardProps = {
   isPlayer1: boolean;
   isMyTurn: boolean;
   onDraw: () => void;
+  onRecycle: () => void; // talon vide : retourner la défausse pour refaire un talon
   onMove: (from: string, to: string) => void;
   canCallCrapette: boolean;
   onCrapette: () => void;
@@ -38,7 +39,7 @@ const findZoneAt = (event: MouseEvent | TouchEvent | PointerEvent, draggedId: st
 };
 
 export default function Board({
-  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onMove, canCallCrapette, onCrapette, players, activeSeat, onPassTurn, onBlockedMove, menu,
+  cartes, selectableZones, isPlayer1, isMyTurn, onDraw, onRecycle, onMove, canCallCrapette, onCrapette, players, activeSeat, onPassTurn, onBlockedMove, menu,
 }: BoardProps) {
   const mySeat = isPlayer1 ? 1 : 2;
   const opponentSeat = isPlayer1 ? 2 : 1;
@@ -71,6 +72,8 @@ export default function Board({
     null,
   );
   const hasDrawnCard = !!myTalonTop && !myTalonTop.isFaceDown;
+  // Talon vide et défausse non vide : le joueur peut retourner sa défausse (ou jouer la carte du dessus).
+  const canRecycle = isMyTurn && !myTalonTop && cartes.some((carte) => carte.zoneId === mine.defausse);
   // Zones qu'on pourrait jouer sans la carte piochée : y toucher une carte affiche un rappel.
   const blockedZones: string[] = [...ZONES.centre, mine.crapette, mine.defausse, theirs.crapette, theirs.defausse];
   // Raison pour laquelle cette carte ne peut pas être prise maintenant, ou null.
@@ -137,6 +140,21 @@ export default function Board({
 
         {/* Coin en haut à droite : nom de la table et menu. */}
         {menu && <div style={{ gridColumn: '22 / span 6', gridRow: 1, placeSelf: 'center', width: '100%' }}>{menu}</div>}
+
+        {/* Juste au-dessus de sa défausse : retourner la défausse pour refaire un talon. */}
+        {canRecycle && (
+          <button
+            onClick={onRecycle}
+            title="Retourner la défausse pour refaire la pioche"
+            aria-label="Retourner la défausse pour refaire la pioche"
+            style={{ ...getGridPlacement(mine.defausse, flipped), gridRow: 5, placeSelf: 'end center' }}
+            className="relative z-[500] w-16 h-16 mb-2 rounded-full bg-gradient-to-b from-[#ffe8a1] via-[#d4af37] to-[#8a6d1d] p-[3px] shadow-[0_6px_18px_rgba(0,0,0,0.55)] hover:brightness-110 active:scale-95 transition-all cursor-pointer animate-pulse hover:animate-none"
+          >
+            <span className="flex w-full h-full items-center justify-center rounded-full bg-[radial-gradient(circle_at_50%_30%,#2e7d4f_0%,#14532d_70%)] text-3xl leading-none">
+              ♻️
+            </span>
+          </button>
+        )}
 
         {/* Le bouton est dans le coin droit de la rangée du joueur, en bas. */}
         <CrapetteButton
