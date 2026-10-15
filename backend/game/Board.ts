@@ -17,6 +17,9 @@ export type ClientCard = {
   symbole?: Symbole;
 };
 
+// Nombre de coups pendant lesquels une faute peut encore être sanctionnée par un « Crapette ! ».
+const FOUL_MEMORY = 3;
+
 export class Board {
   public activePlayer: PlayerNumber;
   // Le premier joueur qui n'a plus de carte dans son jeu (crapette, talon, défausse) gagne.
@@ -25,8 +28,8 @@ export class Board {
   public wonByForfeit = false;
   // Après une pioche, il faut jouer la carte de sa défausse avant de pouvoir repiocher.
   private canDraw = true;
-  // Vrai si la dernière action du joueur actif est une faute que l'adversaire peut sanctionner.
-  private lastActionWasFoul = false;
+  // Coups qu'il reste au joueur actif avant que sa dernière faute soit oubliée (0 : pas de faute à sanctionner).
+  private foulMovesLeft = 0;
   private piles = new Map<string, Pack>(ZONES_PLATEAU.map((zoneId) => [zoneId, new Pack()]));
 
   // Statistiques de la partie, enregistrées dans l'historique à la fin.
@@ -123,7 +126,7 @@ export class Board {
     const card = this.pile(from).top()!;
     if (!this.canPlace(card, from, to)) return false;
 
-    this.lastActionWasFoul = !isFondation(to) && this.canGoUp();
+    this.recordAction(!isFondation(to) && this.canGoUp());
     this.pile(to).add(this.pile(from).take()!);
     const newTop = this.pile(from).top();
     if (newTop) newTop.isFaceDown = false; // retourne la carte suivante de la crapette
@@ -150,7 +153,7 @@ export class Board {
     const { talon, defausse } = playerZones(this.activePlayer);
     if (this.winner || !this.canDraw || this.pile(talon).isEmpty()) return false;
 
-    this.lastActionWasFoul = this.canGoUp();
+    this.recordAction(this.canGoUp());
     this.pile(defausse).add(this.pile(talon).take()!);
     this.canDraw = false;
     return true;
@@ -160,7 +163,14 @@ export class Board {
     this.turns++;
     this.activePlayer = this.opponent;
     this.canDraw = true;
-    this.lastActionWasFoul = false;
+    this.foulMovesLeft = 0; // passer son tour efface la faute
+  }
+
+  // Une faute reste sanctionnable pendant les FOUL_MEMORY coups (déplacement ou pioche) qui la suivent,
+  // même si la carte oubliée est montée entre-temps. Une nouvelle faute relance le compteur.
+  private recordAction(isFoul: boolean) {
+    if (isFoul) this.foulMovesLeft = FOUL_MEMORY;
+    else if (this.foulMovesLeft > 0) this.foulMovesLeft--;
   }
 
   // Faute : le joueur pouvait monter une carte aux fondations et a fait autre chose.
@@ -171,9 +181,9 @@ export class Board {
     });
   }
 
-  // L'adversaire crie « Crapette ! » : si la dernière action était une faute, le tour lui revient.
+  // L'adversaire crie « Crapette ! » : s'il y a une faute encore en mémoire, le tour lui revient.
   public callCrapette(): boolean {
-    if (this.winner || !this.lastActionWasFoul) return false;
+    if (this.winner || this.foulMovesLeft === 0) return false;
     this.crapettes[this.opponent]++;
     this.passTurn();
     return true;
@@ -202,7 +212,7 @@ export class Board {
   public adminGiveTurn(player: PlayerNumber) {
     this.activePlayer = player;
     this.canDraw = true;
-    this.lastActionWasFoul = false;
+    this.foulMovesLeft = 0;
   }
 
   public adminForceWin(player: PlayerNumber) {
