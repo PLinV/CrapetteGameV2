@@ -44,7 +44,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const server = createServer(app);
-setupGameSockets(new Server(server, { maxHttpBufferSize: 10_000 }));
+// Ping toutes les 10 s : un joueur dont la connexion est coupée est vu absent en 20 s au plus (45 s par défaut).
+setupGameSockets(new Server(server, { maxHttpBufferSize: 10_000, pingInterval: 10_000, pingTimeout: 10_000 }));
 
 // Tous les jours à 3h : suppression des refresh tokens et liens de réinitialisation expirés.
 cron.schedule('0 3 * * *', async () => {

@@ -60,7 +60,7 @@ export function useGame(roomId: string) {
   const passwordRef = useRef<string | undefined>(undefined);
 
   const join = () => socket.emit('join_room', { roomId, password: passwordRef.current });
-  useSocketConnection(join, `/game/${roomId}`);
+  const connectionLost = useSocketConnection(join, `/game/${roomId}`);
 
   useEffect(() => {
     const onSeat = ({ seat, name, locked }: { seat: Seat; name: string; locked: boolean }) => {
@@ -106,6 +106,7 @@ export function useGame(roomId: string) {
   }, [message]);
 
   return {
+    connectionLost,
     room,
     passwordPrompt,
     submitPassword: (password: string) => {
