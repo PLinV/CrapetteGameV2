@@ -34,17 +34,25 @@ type GameState = {
 
 // connected : faux si le joueur a quitté la table (sa place et la partie l'attendent).
 // forfeitDeadline : heure (ms) à laquelle il perd par forfait s'il n'est pas revenu, sinon null.
-export type PlayerInfo = { username: string; avatarUrl: string | null; connected: boolean; forfeitDeadline: number | null };
+// crapetteReadyAt : heure (ms) à partir de laquelle il peut de nouveau crier « Crapette ! ».
+export type PlayerInfo = {
+  username: string;
+  avatarUrl: string | null;
+  connected: boolean;
+  forfeitDeadline: number | null;
+  crapetteReadyAt: number;
+};
 
-type ServerPlayer = Omit<PlayerInfo, 'forfeitDeadline'> & { forfeitInMs: number | null };
+type ServerPlayer = Omit<PlayerInfo, 'forfeitDeadline' | 'crapetteReadyAt'> & { forfeitInMs: number | null; crapetteCooldownMs: number };
 
-// Le serveur envoie un temps restant : on le convertit en heure locale, pour le compte à rebours.
+// Le serveur envoie des temps restants : on les convertit en heures locales, pour les comptes à rebours.
 const withDeadlines = (state: Omit<GameState, 'players'> & { players: (ServerPlayer | null)[] }): GameState => ({
   ...state,
   players: state.players.map((player) => {
     if (!player) return null;
-    const { forfeitInMs, ...rest } = player;
-    return { ...rest, forfeitDeadline: forfeitInMs === null ? null : Date.now() + forfeitInMs };
+    const { forfeitInMs, crapetteCooldownMs, ...rest } = player;
+    const now = Date.now();
+    return { ...rest, forfeitDeadline: forfeitInMs === null ? null : now + forfeitInMs, crapetteReadyAt: now + crapetteCooldownMs };
   }),
 });
 
