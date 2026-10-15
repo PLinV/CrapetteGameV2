@@ -19,6 +19,10 @@ export type ClientCard = {
 
 // Nombre de coups pendant lesquels une faute peut encore être sanctionnée par un « Crapette ! ».
 const FOUL_MEMORY = 3;
+// Délai entre deux « Crapette ! » d'un même joueur, acceptés ou non (contre les appels en rafale).
+export const CRAPETTE_COOLDOWN_MS = 10_000;
+
+export type CrapetteCall = 'accepted' | 'refused' | 'cooldown';
 
 export class Board {
   public activePlayer: PlayerNumber;
@@ -28,6 +32,8 @@ export class Board {
   public wonByForfeit = false;
   // Coups qu'il reste au joueur actif avant que sa dernière faute soit oubliée (0 : pas de faute à sanctionner).
   private foulMovesLeft = 0;
+  // Heure (ms) du dernier « Crapette ! » de chaque joueur.
+  private lastCrapetteCall: Record<PlayerNumber, number> = { 1: -Infinity, 2: -Infinity };
   private piles = new Map<string, Pack>(ZONES_PLATEAU.map((zoneId) => [zoneId, new Pack()]));
 
   // Statistiques de la partie, enregistrées dans l'historique à la fin.
@@ -85,7 +91,8 @@ export class Board {
 
     // Carte piochée (retournée sur le talon) : on ne peut jouer qu'elle. Sinon le talon ne se joue pas.
     if (this.hasDrawnCard()) return zoneId === mine.talon;
-    if (zoneId === mine.defausse) return !this.crapetteHasMove(); // la crapette est prioritaire
+    // La crapette est prioritaire sur la défausse, sauf pour monter la carte de la défausse aux fondations.
+    if (zoneId === mine.defausse) return !this.crapetteHasMove() || this.canGoUpFrom(zoneId);
     return isCentre(zoneId) || zoneId === mine.crapette || zoneId === theirs.defausse || zoneId === theirs.crapette;
   }
 
@@ -103,6 +110,9 @@ export class Board {
     // Une carte prise à l'adversaire doit obligatoirement monter aux fondations.
     if (from === theirs.defausse || from === theirs.crapette) return false;
 
+    // Crapette jouable : la défausse ne peut que monter aux fondations.
+    if (from === mine.defausse && this.crapetteHasMove()) return false;
+
     // Sa propre défausse ne reçoit que la carte piochée qu'on n'a pas pu jouer.
     if (to === mine.defausse) return from === mine.talon;
 
@@ -119,7 +129,13 @@ export class Board {
     return false;
   }
 
-  private crapetteHasMove(): boolean {
+  private canGoUpFrom(from: string): boolean {
+    const card = this.pile(from).top();
+    return !!card && ZONES.fondations.some((to) => this.canPlace(card, from, to));
+  }
+
+  // Vrai si la carte du dessus de la crapette du joueur actif peut être jouée : elle passe avant le talon et la défausse.
+  public crapetteHasMove(): boolean {
     const from = playerZones(this.activePlayer).crapette;
     const card = this.pile(from).top();
     return !!card && ZONES_PLATEAU.some((to) => this.canPlace(card, from, to));
@@ -159,7 +175,7 @@ export class Board {
   // et on ne peut pas en retourner une autre tant qu'elle est là.
   public draw(): boolean {
     const top = this.pile(playerZones(this.activePlayer).talon).top();
-    if (this.winner || !top || !top.isFaceDown) return false;
+    if (this.winner || !top || !top.isFaceDown || this.crapetteHasMove()) return false;
 
     this.recordAction(this.canGoUp());
     top.isFaceDown = false;
@@ -201,13 +217,22 @@ export class Board {
     });
   }
 
-  // L'adversaire crie « Crapette ! » : s'il y a une faute encore en mémoire, le tour lui revient.
-  public callCrapette(): boolean {
-    if (this.winner || this.foulMovesLeft === 0) return false;
+  // Temps (ms) avant que ce joueur puisse de nouveau crier « Crapette ! ».
+  public crapetteCooldownMs(player: PlayerNumber, now = Date.now()): number {
+    return Math.max(0, this.lastCrapetteCall[player] + CRAPETTE_COOLDOWN_MS - now);
+  }
+
+  // L'adversaire du joueur actif crie « Crapette ! » : s'il y a une faute encore en mémoire, le tour lui revient.
+  public callCrapette(caller: PlayerNumber, now = Date.now()): CrapetteCall {
+    if (this.crapetteCooldownMs(caller, now) > 0) return 'cooldown';
+    if (this.winner) return 'refused';
+    this.lastCrapetteCall[caller] = now;
+    if (this.foulMovesLeft === 0) return 'refused';
     this.crapettes[this.opponent]++;
     this.passTurn();
-    return true;
+    return 'accepted';
   }
+
 
   // Le joueur est parti trop longtemps : son adversaire gagne.
   public forfeit(loser: PlayerNumber) {

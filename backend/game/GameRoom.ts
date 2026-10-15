@@ -260,6 +260,8 @@ export class GameRoom {
           avatarUrl: account.avatarUrl,
           connected: this.connections[i] > 0,
           forfeitInMs: at === null ? null : Math.max(0, at - now),
+          // temps avant de pouvoir crier de nouveau « Crapette ! »
+          crapetteCooldownMs: this.board?.crapetteCooldownMs((i + 1) as PlayerNumber, now) ?? 0,
         };
       }),
     };

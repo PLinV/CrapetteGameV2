@@ -20,9 +20,12 @@ type BoardProps = {
   players: (PlayerInfo | null)[];
   activeSeat: 1 | 2 | null;
   onPassTurn: () => void;
-  onBlockedMove: () => void; // le joueur touche une autre carte alors qu'il doit jouer sa carte piochée
+  onBlockedMove: (reason: string) => void; // le joueur touche une carte qu'il ne peut pas jouer pour l'instant
   menu?: ReactNode; // affiché dans le coin en haut à droite du plateau
 };
+
+const DRAWN_CARD_FIRST = "Jouez d'abord la carte piochée, ou posez-la sur votre défausse.";
+const CRAPETTE_FIRST = "Carte prioritaire jouable";
 
 // Zone (emplacement vide ou carte) sous le pointeur, en ignorant la carte qu'on déplace.
 const findZoneAt = (event: MouseEvent | TouchEvent | PointerEvent, draggedId: string) => {
@@ -70,6 +73,14 @@ export default function Board({
   const hasDrawnCard = !!myTalonTop && !myTalonTop.isFaceDown;
   // Zones qu'on pourrait jouer sans la carte piochée : y toucher une carte affiche un rappel.
   const blockedZones: string[] = [...ZONES.centre, mine.crapette, mine.defausse, theirs.crapette, theirs.defausse];
+  // Raison pour laquelle cette carte ne peut pas être prise maintenant, ou null.
+  const blockedReason = (carte: CarteData, isTopCard: boolean): string | null => {
+    if (!isMyTurn || !isTopCard || carte.isFaceDown || selectableZones.includes(carte.zoneId)) return null;
+    if (hasDrawnCard && blockedZones.includes(carte.zoneId)) return DRAWN_CARD_FIRST;
+    // Sa défausse non jouable sans carte piochée : la crapette passe avant.
+    if (carte.zoneId === mine.defausse) return CRAPETTE_FIRST;
+    return null;
+  };
   // Chaque joueur voit ses propres cartes en bas de l'écran.
   const flipped = isPlayer1;
 
@@ -89,7 +100,7 @@ export default function Board({
           const isTopCard = carte.zOrder === topOrder[carte.zoneId];
           const isDraggable = isMyTurn && isTopCard && !carte.isFaceDown && selectableZones.includes(carte.zoneId);
           const canDraw = isMyTurn && isTopCard && carte.isFaceDown && carte.zoneId === myTalon;
-          const isBlocked = isMyTurn && hasDrawnCard && isTopCard && !carte.isFaceDown && blockedZones.includes(carte.zoneId);
+          const reason = blockedReason(carte, isTopCard);
           const horizontal = isHorizontalZone(carte.zoneId);
           const placement = getGridPlacement(carte.zoneId, flipped);
 
@@ -108,7 +119,7 @@ export default function Board({
               horizontal={horizontal}
               draggable={isDraggable}
               canDraw={canDraw}
-              onBlocked={isBlocked ? onBlockedMove : undefined}
+              onBlocked={reason ? () => onBlockedMove(reason) : undefined}
               style={{
                 ...placement,
                 zIndex: carte.zOrder,
@@ -130,6 +141,7 @@ export default function Board({
         {/* Le bouton est dans le coin droit de la rangée du joueur, en bas. */}
         <CrapetteButton
           enabled={canCallCrapette}
+          readyAt={players[mySeat - 1]?.crapetteReadyAt ?? 0}
           onClick={onCrapette}
           style={{ gridColumn: '22 / span 6', gridRow: 6, placeSelf: 'center' }}
         />

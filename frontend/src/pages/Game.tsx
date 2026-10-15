@@ -114,7 +114,7 @@ export default function Game() {
               players={state?.players ?? []}
               activeSeat={isOver ? null : state?.turn ?? null}
               onPassTurn={passTurn}
-              onBlockedMove={() => warn("Jouez d'abord la carte piochée, ou posez-la sur votre défausse.")}
+              onBlockedMove={warn}
               menu={<GameMenu room={room} onLeave={handleLeave} />}
             />
           </div>

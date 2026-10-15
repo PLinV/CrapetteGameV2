@@ -16,6 +16,8 @@ const MAX_ROOM_PASSWORD_LENGTH = 50;
 // Mauvais mots de passe tolérés par compte et par fenêtre de temps (contre les essais en série).
 const MAX_PASSWORD_ATTEMPTS = 10;
 const PASSWORD_ATTEMPTS_WINDOW_MS = 10 * 60 * 1000;
+// La carte du dessus de la crapette peut être jouée : elle passe avant le talon et la défausse.
+const CRAPETTE_FIRST = 'Carte prioritaire jouable';
 // Le joueur a retourné une carte de son talon : il doit la jouer avant toute autre.
 const DRAWN_CARD_FIRST = "Jouez d'abord la carte piochée, ou posez-la sur votre défausse.";
 const LOBBY = 'lobby'; // canal des sockets qui regardent la liste des parties
@@ -293,7 +295,9 @@ export function setupGameSockets(io: Server) {
     socket.on('draw_card', () => {
       const game = myTurnBoard();
       if (!game) return;
-      if (!game.board.draw()) socket.emit('action_error', 'Vous ne pouvez pas piocher maintenant.');
+      if (!game.board.draw()) {
+        socket.emit('action_error', game.board.crapetteHasMove() ? CRAPETTE_FIRST : 'Vous ne pouvez pas piocher maintenant.');
+      }
       sendState(socket.data.roomId, game.room);
     });
 
@@ -319,12 +323,15 @@ export function setupGameSockets(io: Server) {
       const caller = mySeat();
       if (!room || !board || !caller || caller === board.activePlayer) return;
 
-      if (!board.callCrapette()) {
-        socket.emit('action_error', 'Pas de faute : la Crapette est refusée.');
+      const result = board.callCrapette(caller);
+      if (result === 'cooldown') {
+        const seconds = Math.ceil(board.crapetteCooldownMs(caller) / 1000);
+        socket.emit('action_error', `Attendez encore ${seconds} s avant de crier Crapette.`);
         return;
       }
-      io.to(socket.data.roomId).emit('crapette_called', caller);
-      sendState(socket.data.roomId, room);
+      if (result === 'refused') socket.emit('action_error', 'Pas de faute : la Crapette est refusée.');
+      else io.to(socket.data.roomId).emit('crapette_called', caller);
+      sendState(socket.data.roomId, room); // le délai du bouton s'affiche chez les deux joueurs
     });
 
     socket.on('play_again', () => {
