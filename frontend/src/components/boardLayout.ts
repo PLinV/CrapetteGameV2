@@ -18,10 +18,16 @@ export const getGridPlacement = (zoneId: string, flipped: boolean) => {
 export const isHorizontalZone = (zoneId: string) => zoneId.startsWith('4') || zoneId.startsWith('5');
 
 // Décalage vertical entre les cartes empilées au centre : vers le haut pour la rangée du haut, vers le bas pour l'autre.
+// Jusqu'à 6 cartes, écart normal. Au-delà, la pile est resserrée pour garder la hauteur d'une pile de 6,
+// sans descendre sous l'écart qui laisse lire le chiffre et la couleur (la seule chose qui compte au centre).
 // Les autres piles (fondations, crapette, talon, défausse) sont empilées sans décalage.
-export const stackOffset = (zoneId: string, gridRow: number) => {
+const STACK_STEP = 50;
+const MIN_STACK_STEP = 30;
+const MAX_STACK_SPREAD = 5 * STACK_STEP; // hauteur d'une pile de 6 cartes
+export const stackOffset = (zoneId: string, gridRow: number, pileSize: number) => {
   if (!zoneId.startsWith('3')) return 0;
-  return gridRow === 3 ? -50 : 50;
+  const step = pileSize > 1 ? Math.max(MIN_STACK_STEP, Math.min(STACK_STEP, MAX_STACK_SPREAD / (pileSize - 1))) : STACK_STEP;
+  return gridRow === 3 ? -step : step;
 };
 
 // Mouvement des cartes : glissement fluide qui ralentit à l'arrivée, sans rebond.

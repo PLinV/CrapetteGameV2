@@ -99,7 +99,7 @@ export default function Board({
               style={{
                 ...placement,
                 zIndex: carte.zOrder,
-                transform: `translateY(${carte.zOrder * stackOffset(carte.zoneId, placement.gridRow)}px)`,
+                transform: `translateY(${carte.zOrder * stackOffset(carte.zoneId, placement.gridRow, topOrder[carte.zoneId] + 1)}px)`,
               }}
               onDraw={onDraw}
               onDrop={onDrop}
