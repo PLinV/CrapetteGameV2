@@ -16,6 +16,8 @@ const MAX_ROOM_PASSWORD_LENGTH = 50;
 // Mauvais mots de passe tolérés par compte et par fenêtre de temps (contre les essais en série).
 const MAX_PASSWORD_ATTEMPTS = 10;
 const PASSWORD_ATTEMPTS_WINDOW_MS = 10 * 60 * 1000;
+// Le joueur a retourné une carte de son talon : il doit la jouer avant toute autre.
+const DRAWN_CARD_FIRST = "Jouez d'abord la carte piochée, ou posez-la sur votre défausse.";
 const LOBBY = 'lobby'; // canal des sockets qui regardent la liste des parties
 // Chat : 300 caractères par message, et au plus 5 messages par tranche de 5 secondes par joueur.
 const MAX_CHAT_LENGTH = 300;
@@ -299,7 +301,7 @@ export function setupGameSockets(io: Server) {
       const { from, to } = payload ?? {};
       const game = myTurnBoard();
       if (!game || typeof from !== 'string' || typeof to !== 'string') return;
-      if (!game.board.move(from, to)) socket.emit('action_error', 'Coup interdit.');
+      if (!game.board.move(from, to)) socket.emit('action_error', game.board.hasDrawnCard() ? DRAWN_CARD_FIRST : 'Coup interdit.');
       sendState(socket.data.roomId, game.room);
     });
 

@@ -134,6 +134,8 @@ export function useGame(roomId: string) {
     isAdmin,
     adminAction: (action: AdminAction, target: 'me' | 'opponent' = 'me') => socket.emit('admin_action', { action, target }),
     leave: () => socket.emit('leave_room'),
+    // Message affiché sans passer par le serveur (coup impossible repéré dans le navigateur).
+    warn: (text: string) => setMessage({ text, kind: 'error' }),
     chat,
     sendChat: (text: string) => socket.emit('chat_send', text),
   };
